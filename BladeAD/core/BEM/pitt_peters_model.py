@@ -1,13 +1,12 @@
-from typing import Union
 from BladeAD.utils.var_groups import BEMInputs
 from BladeAD.core.BEM.compute_local_frame_velocity import compute_local_frame_velocities
 from BladeAD.core.BEM.preprocess_variables import preprocess_input_variables
-from BladeAD.core.BEM.compute_inflow_angle import compute_inflow_angle
-from BladeAD.core.BEM.compute_quantities_of_interest import compute_quantities_of_interest
+# from BladeAD.core.BEM.pitt_peters_inflow import solve_for_steady_state_inflow
+from BladeAD.core.BEM.peters_he_inflow import solve_for_steady_state_inflow
 import csdl_alpha as csdl
 
 
-class BEMModel:
+class PittPetersModel:
     def __init__(
         self,
         num_nodes: int,
@@ -25,8 +24,8 @@ class BEMModel:
     def evaluate(self, inputs: BEMInputs):
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
-        if self.integration_scheme == 'Simpson' and (num_radial % 2) == 0:
-            raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
+        # if self.integration_scheme == 'Simpson' and (num_radial % 2) == 0:
+        #     raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
 
         num_azimuthal = inputs.mesh_parameters.num_azimuthal
         num_blades = inputs.mesh_parameters.num_blades
@@ -62,38 +61,24 @@ class BEMModel:
             radius=radius,
         )
 
-        bem_implicit_outputs = compute_inflow_angle(
+        state_vec = solve_for_steady_state_inflow(
             shape=shape,
-            num_blades=num_blades,
-            airfoil_model=self.airfoil_model,
-            atmos_states=inputs.atmos_states,
+            r_norm=pre_process_outputs.norm_radius_exp,
+            psi=pre_process_outputs.azimuth_angle_exp,
+            rpm=rpm,
+            radius=radius,
+            mu_z=local_frame_velocities.mu_z,
+            mu=local_frame_velocities.mu,
+            tangential_velocity=local_frame_velocities.tangential_velocity,
+            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            radius_vec=pre_process_outputs.radius_vector_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
-            frame_velocity=local_frame_velocities.local_frame_velocity,
-            tangential_velocity=local_frame_velocities.tangential_velocity,
-            radius_vec_exp=pre_process_outputs.radius_vector_exp,
-            radius=radius,
-            hub_radius=pre_process_outputs.hub_radius,
-            sigma=pre_process_outputs.sigma,
-        )
-
-        bem_outputs = compute_quantities_of_interest(
-            shape=shape,
-            phi=bem_implicit_outputs.inflow_angle,
-            Vx=local_frame_velocities.local_frame_velocity[:, :, :, 0],
-            Vt=local_frame_velocities.tangential_velocity,
-            rpm=rpm,
-            radius_vector=pre_process_outputs.radius_vector_exp,
-            radius=radius,
-            sigma=pre_process_outputs.sigma,
-            rho=inputs.atmos_states.density,
-            F=bem_implicit_outputs.tip_loss_factor,
-            chord_profile=pre_process_outputs.chord_profile_exp,
-            Cl=bem_implicit_outputs.Cl,
-            Cd=bem_implicit_outputs.Cd,
-            dr=pre_process_outputs.element_width,
+            airfoil_model=self.airfoil_model,
+            atmos_states=inputs.atmos_states,
             num_blades=num_blades,
+            dr=pre_process_outputs.element_width,
             integration_scheme=self.integration_scheme,
         )
 
-        return bem_outputs
+        return state_vec
