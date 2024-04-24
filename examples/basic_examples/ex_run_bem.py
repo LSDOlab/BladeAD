@@ -3,13 +3,14 @@ from BladeAD.utils.var_groups import BEMInputs, BEMMeshParameters
 from BladeAD.core.airfoil.custom_airfoil_polar import TestAirfoilModel, SimpleAirfoilPolar
 from BladeAD.core.BEM.bem_model import BEMModel
 import numpy as np
+from time import time
+
 
 recorder = csdl.Recorder(inline=True)
 recorder.start()
 
-
 num_nodes = 1
-num_radial = 50
+num_radial = 51
 num_azimuthal = 50
 
 num_blades = 2
@@ -64,17 +65,20 @@ bem_inputs = BEMInputs(
 bem_model = BEMModel(
     num_nodes=num_nodes,
     airfoil_model=airfoil_model,
-    integration_scheme='Riemann',
+    integration_scheme='trapezoidal',
 )
 
+t1 = time()
 outputs = bem_model.evaluate(inputs=bem_inputs)
-
+t2 = time()
+print("time", t2-t1)
 T = outputs.total_thrust.value
 Q = outputs.total_torque.value
 
 print("thrust", T)
 print("torque", Q)
 print("eta", outputs.efficiency.value)
+
 
 recorder.stop()
 

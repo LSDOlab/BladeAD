@@ -1,18 +1,11 @@
 import csdl_alpha as csdl
 import numpy as np
-from dataclasses import dataclass
-
-@dataclass
-class PittPetersImplicitOutputs(csdl.VariableGroup):
-    phi: csdl.Variable
-    Cl: csdl.Variable
-    Cd: csdl.Variable
-    ux: csdl.Variable
+from BladeAD.utils.var_groups import RotorAnalysisOutputs
+from BladeAD.utils.integration_schemes import integrate_quantity
 
 
 def solve_for_steady_state_inflow(
     shape,
-    r_norm,
     psi,
     rpm,
     radius,
@@ -28,7 +21,7 @@ def solve_for_steady_state_inflow(
     num_blades,
     dr,
     integration_scheme, 
-):
+) -> RotorAnalysisOutputs:
     # Pre-processing
     num_nodes = shape[0]
     num_radial = shape[1]
@@ -80,71 +73,11 @@ def solve_for_steady_state_inflow(
     dMx = radius_vec * csdl.sin(psi) * dT
     dMy = radius_vec * csdl.cos(psi) * dT
 
-    thrust = csdl.Variable(shape=(num_nodes, ), value=0.)
-    torque = csdl.Variable(shape=(num_nodes, ), value=0.)
-    Mx = csdl.Variable(shape=(num_nodes, ), value=0.)
-    My = csdl.Variable(shape=(num_nodes, ), value=0.)
+    thrust = integrate_quantity(dT, integration_scheme)
+    torque = integrate_quantity(dQ, integration_scheme)
+    Mx = integrate_quantity(dMx, integration_scheme)
+    My = integrate_quantity(dMy, integration_scheme)
 
-    if integration_scheme == 'trapezoidal':
-        for i in csdl.frange(num_nodes):
-            # for j in csdl.frange(num_radial-1):
-            thrust = thrust.set(
-                csdl.slice[i], csdl.sum((dT[i, 0, :] + dT[i, -1, :]) / 2)  + csdl.sum(dT[i, 1:-1, :]) 
-            )
-            torque = torque.set(
-                csdl.slice[i], csdl.sum((dQ[i, 0, :] + dQ[i, -1, :]) / 2)  + csdl.sum(dQ[i, 1:-1, :]) 
-            )
-            Mx = Mx.set(
-                csdl.slice[i], csdl.sum((dMx[i, 0, :] + dMx[i, -1, :]) / 2)  + csdl.sum(dMx[i, 1:-1, :]) 
-            )
-            My = My.set(
-                csdl.slice[i], csdl.sum((dMy[i, 0, :] + dMy[i, -1, :]) / 2)  + csdl.sum(dMy[i, 1:-1, :])
-            )
-        thrust =  thrust / num_azimuthal
-        torque = torque / num_azimuthal
-        Mx = Mx / num_azimuthal
-        My = My / num_azimuthal
-
-    elif integration_scheme == 'Simpson':
-        for i in csdl.frange(num_nodes):
-            value_thrust = csdl.sum(dT[i, 0, :]) + csdl.sum(dT[i, -1, :]) + 4 * csdl.sum(dT[i, 1:-1:2, :]) + 2 * csdl.sum(dT[i, 2:-1:2, :])
-            thrust = thrust.set(
-                slices=csdl.slice[i],
-                value=value_thrust
-            )
-
-            value_torque = csdl.sum(dQ[i, 0, :] + dQ[i, -1, :]) + 4 * csdl.sum(dQ[i, 1:-1:2, :]) + 2 * csdl.sum(dQ[i, 2:-1:2, :])
-            torque = torque.set(
-                slices=csdl.slice[i],
-                value=value_torque
-            )
-
-            value_Mx = csdl.sum(dMx[i, 0, :] + dMx[i, -1, :]) + 4 * csdl.sum(dMx[i, 1:-1:2, :]) + 2 * csdl.sum(dMx[i, 2:-1:2, :])
-            Mx = Mx.set(
-                slices=csdl.slice[i],
-                value=value_Mx
-            )
-
-            value_My = csdl.sum(dMy[i, 0, :] + dMy[i, -1, :]) + 4 * csdl.sum(dMy[i, 1:-1:2, :]) + 2 * csdl.sum(dMy[i, 2:-1:2, :])
-            My = My.set(
-                slices=csdl.slice[i],
-                value=value_My
-            )
-
-        thrust =  thrust / 3 / num_azimuthal
-        torque = torque / 3 / num_azimuthal
-        Mx = Mx / 3/ num_azimuthal
-        My = My / 3/ num_azimuthal
-
-    elif integration_scheme == 'Riemann':
-        thrust = csdl.sum(dT, axes=(1, 2)) / num_azimuthal
-        torque = csdl.sum(dQ, axes=(1, 2)) / num_azimuthal
-        Mx = csdl.sum(dMx, axes=(1, 2)) / num_azimuthal
-        My = csdl.sum(dMy, axes=(1, 2)) / num_azimuthal
-    
-    else:
-        raise NotImplementedError("Unknown integration scheme.")
-    
 
     for i in csdl.frange(num_nodes):
         C_T = thrust[i] / (rho * np.pi * radius**2 * (omega[i] * radius) ** 2)
@@ -162,12 +95,8 @@ def solve_for_steady_state_inflow(
         lam_m = lam_0 * 3**0.5
         lam = lam_m
 
-        # lam_i = csdl.average(lam_exp_i[i, :, :])
-        # lam = lam_i + mu_z[i]
-
         chi = csdl.arctan(mu[i] / lam)
         V_eff = (mu[i] ** 2 + lam * (lam + lam_m)) / (mu[i] ** 2 + lam**2) ** 0.5
-        # V_eff = (mu[i] ** 2 + lam**2) ** 0.5
 
         L_mat = csdl.Variable(shape=(3, 3), value=np.zeros((3, 3)))
         L_mat = L_mat.set(csdl.slice[0, 0], 0.5)
@@ -221,6 +150,8 @@ def solve_for_steady_state_inflow(
     psi_ = psi[0, 0, :].value
 
     Psi, R = np.meshgrid(psi_, r)
+
+    Psi = Psi - np.pi / 2
 
     print(chi.value * 180 / np.pi)
     # dT = lam_exp_i # ux #lam_exp_i

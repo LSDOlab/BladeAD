@@ -1,8 +1,7 @@
-from BladeAD.utils.var_groups import BEMInputs
-from BladeAD.core.BEM.compute_local_frame_velocity import compute_local_frame_velocities
-from BladeAD.core.BEM.preprocess_variables import preprocess_input_variables
-# from BladeAD.core.BEM.pitt_peters_inflow import solve_for_steady_state_inflow
-from BladeAD.core.BEM.peters_he_inflow import solve_for_steady_state_inflow
+from BladeAD.utils.var_groups import BEMInputs, RotorAnalysisOutputs
+from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_local_frame_velocities
+from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
+from BladeAD.core.pitt_peters.pitt_peters_inflow import solve_for_steady_state_inflow
 import csdl_alpha as csdl
 
 
@@ -11,21 +10,20 @@ class PittPetersModel:
         self,
         num_nodes: int,
         airfoil_model,
-        integration_scheme: str = 'trapezoidal'
+        integration_scheme: str = "trapezoidal"
     ) -> None:
-        csdl.check_parameter(
-            integration_scheme,
-            'integration_scheme',
-            values=('Simpson', 'Riemann', 'trapezoidal'))
+        csdl.check_parameter(num_nodes, "num_nodes", types=int)
+        csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))
+        
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
 
-    def evaluate(self, inputs: BEMInputs):
+    def evaluate(self, inputs: BEMInputs) -> RotorAnalysisOutputs:
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
-        # if self.integration_scheme == 'Simpson' and (num_radial % 2) == 0:
-        #     raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
+        if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
+            raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
 
         num_azimuthal = inputs.mesh_parameters.num_azimuthal
         num_blades = inputs.mesh_parameters.num_blades
@@ -61,9 +59,8 @@ class PittPetersModel:
             radius=radius,
         )
 
-        state_vec = solve_for_steady_state_inflow(
+        dynamic_inflow_outputs = solve_for_steady_state_inflow(
             shape=shape,
-            r_norm=pre_process_outputs.norm_radius_exp,
             psi=pre_process_outputs.azimuth_angle_exp,
             rpm=rpm,
             radius=radius,
@@ -81,4 +78,4 @@ class PittPetersModel:
             integration_scheme=self.integration_scheme,
         )
 
-        return state_vec
+        return dynamic_inflow_outputs

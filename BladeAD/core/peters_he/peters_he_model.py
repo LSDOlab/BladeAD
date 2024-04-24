@@ -1,32 +1,38 @@
-from typing import Union
 from BladeAD.utils.var_groups import BEMInputs, RotorAnalysisOutputs
 from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_local_frame_velocities
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
-from BladeAD.core.BEM.compute_inflow_angle import compute_inflow_angle
-from BladeAD.core.BEM.compute_quantities_of_interest import compute_quantities_of_interest
+from BladeAD.core.peters_he.peters_he_inflow import solve_for_steady_state_inflow
 import csdl_alpha as csdl
 
 
-class BEMModel:
+class PetersHeModel:
     def __init__(
-        self,
+        self, 
         num_nodes: int,
         airfoil_model,
-        integration_scheme: str = 'trapezoidal'
+        integration_scheme: str = "trapezoidal",
+        Q: int = 3,
+        M: int = 3,
     ) -> None:
-        csdl.check_parameter(num_nodes, 'num_nodes', types=int)
-        csdl.check_parameter(integration_scheme, 'integration_scheme', values=('Simpson', 'Riemann', 'trapezoidal'))
-        
+        csdl.check_parameter(num_nodes, types=int)
+        csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))
+        csdl.check_parameter(Q, "Q", types=int)
+        csdl.check_parameter(M, "M", types=int)
+
+        if Q > 3:
+            raise NotImplementedError("Q greater than 3 has not been tested yet and will likely not converge")
+
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
+        self.Q = Q
+        self.M = M
 
+    
     def evaluate(self, inputs: BEMInputs) -> RotorAnalysisOutputs:
-        """Evaluate the BEM solver.
-        """
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
-        if self.integration_scheme == 'Simpson' and (num_radial % 2) == 0:
+        if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
             raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
 
         num_azimuthal = inputs.mesh_parameters.num_azimuthal
@@ -63,41 +69,25 @@ class BEMModel:
             radius=radius,
         )
 
-        bem_implicit_outputs = compute_inflow_angle(
+        dynamic_inflow_outputs = solve_for_steady_state_inflow(
             shape=shape,
-            num_blades=num_blades,
-            airfoil_model=self.airfoil_model,
-            atmos_states=inputs.atmos_states,
+            psi=pre_process_outputs.azimuth_angle_exp,
+            rpm=rpm,
+            radius=radius,
+            mu_z=local_frame_velocities.mu_z,
+            mu=local_frame_velocities.mu,
+            tangential_velocity=local_frame_velocities.tangential_velocity,
+            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            radius_vec=pre_process_outputs.radius_vector_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
-            frame_velocity=local_frame_velocities.local_frame_velocity,
-            tangential_velocity=local_frame_velocities.tangential_velocity,
-            radius_vec_exp=pre_process_outputs.radius_vector_exp,
-            radius=radius,
-            hub_radius=pre_process_outputs.hub_radius,
-            sigma=pre_process_outputs.sigma,
-        )
-
-        bem_outputs = compute_quantities_of_interest(
-            shape=shape,
-            phi=bem_implicit_outputs.inflow_angle,
-            Vx=local_frame_velocities.local_frame_velocity[:, :, :, 0],
-            Vt=local_frame_velocities.tangential_velocity,
-            rpm=rpm,
-            radius_vector=pre_process_outputs.radius_vector_exp,
-            radius=radius,
-            sigma=pre_process_outputs.sigma,
-            rho=inputs.atmos_states.density,
-            F=bem_implicit_outputs.tip_loss_factor,
-            chord_profile=pre_process_outputs.chord_profile_exp,
-            Cl=bem_implicit_outputs.Cl,
-            Cd=bem_implicit_outputs.Cd,
-            dr=pre_process_outputs.element_width,
+            airfoil_model=self.airfoil_model,
+            atmos_states=inputs.atmos_states,
             num_blades=num_blades,
+            dr=pre_process_outputs.element_width,
             integration_scheme=self.integration_scheme,
+            M=self.M,
+            Q=self.Q,
         )
 
-        bem_outputs.residual = bem_implicit_outputs.bem_residual
-
-        return bem_outputs
-    
+        return dynamic_inflow_outputs

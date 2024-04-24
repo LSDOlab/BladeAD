@@ -1,21 +1,7 @@
 import csdl_alpha as csdl
 import numpy as np
-from dataclasses import dataclass
-
-
-@dataclass
-class BEMoutputs(csdl.VariableGroup):
-    axial_induced_velocity: csdl.Variable
-    tangential_induced_velocity: csdl.Variable
-    sectional_thrust: csdl.Variable
-    sectional_torque: csdl.Variable
-    total_thrust: csdl.Variable
-    total_torque: csdl.Variable
-    efficiency: csdl.Variable
-    figure_of_merit: csdl.Variable
-    thrust_coefficient: csdl.Variable
-    torque_coefficient: csdl.Variable
-    power_coefficient: csdl.Variable
+from BladeAD.utils.var_groups import RotorAnalysisOutputs
+from BladeAD.utils.integration_schemes import integrate_quantity
 
 
 def compute_quantities_of_interest(
@@ -35,10 +21,9 @@ def compute_quantities_of_interest(
     radius: csdl.Variable,
     num_blades: int,
     integration_scheme: str,
-):
+) -> RotorAnalysisOutputs:
+    
     num_nodes = shape[0]
-    num_radial = shape[1]
-    num_azimuthal = shape[2]
 
     # convert rpm to rps
     n = rpm / 60
@@ -64,42 +49,8 @@ def compute_quantities_of_interest(
     dQ2 = num_blades * Ct * 0.5 * rho * (ux_2**2 + (Vt - 0.5 * ut)**2) * chord_profile * dr * radius_vector
 
     # compute total thrust and torque
-    thrust = csdl.Variable(shape=(num_nodes, ), value=0.)
-    torque = csdl.Variable(shape=(num_nodes, ), value=0.)
-    if integration_scheme == 'trapezoidal':
-        for i in csdl.frange(num_nodes):
-            for j in csdl.frange(num_radial-1):
-                thrust = thrust.set(
-                    csdl.slice[i], thrust + csdl.sum((dT[i, j+1, :] +  dT[i, j, :]) / 2)
-                )
-                torque = torque.set(
-                    csdl.slice[i], torque + csdl.sum((dQ[i, j+1, :] +  dQ[i, j, :]) / 2)
-                )
-        thrust =  thrust / num_azimuthal
-        torque = torque / num_azimuthal
-
-    elif integration_scheme == 'Simpson':
-        for i in csdl.frange(num_nodes):
-            for j in csdl.frange(int(num_radial / 2)):
-                j1 = 2 * (j + 1) - 2 
-                j2 = 2 * (j + 1) - 1
-                j3 = 2 * (j + 1)
-                thrust = thrust.set(
-                    csdl.slice[i], thrust[i] + csdl.sum(dT[i, j1, :] + 4 * dT[i, j2, :] + dT[i, j3, :]) 
-                )
-
-                torque = torque.set(
-                    csdl.slice[i], torque[i] + csdl.sum(dQ[i, j1, :] + 4 * dQ[i, j2, :] + dQ[i, j3, :]) 
-                )
-        thrust =  thrust / 3 / num_azimuthal
-        torque = torque / 3 / num_azimuthal
-
-    elif integration_scheme == 'Riemann':
-        thrust = csdl.sum(dT, axes=(1, 2)) / num_azimuthal
-        torque = csdl.sum(dQ, axes=(1, 2)) / num_azimuthal
-    
-    else:
-        raise NotImplementedError("Unknown integration scheme.")
+    thrust = integrate_quantity(dT, integration_scheme)
+    torque = integrate_quantity(dQ, integration_scheme)
     
     # compute thrust/torque coefficient
     C_T = thrust / rho / n**2 / (2 * radius)**4
@@ -107,12 +58,12 @@ def compute_quantities_of_interest(
     C_P = 2 * np.pi * C_Q
 
     # Compute advance ratio and efficiency and FOM
-    Vx_num_nodes = csdl.sum(Vx, axes=(1, 2)) / shape[1] / shape[2]
+    Vx_num_nodes = Vx[num_nodes, 0, 0]
     J = Vx_num_nodes / n / (2 * radius)
     eta = C_T * J / C_P
     FoM = C_T * (C_T/2)**0.5 / C_P
 
-    bem_outputs = BEMoutputs(
+    bem_outputs = RotorAnalysisOutputs(
         axial_induced_velocity=ux,
         tangential_induced_velocity=ut,
         sectional_thrust=dT,

@@ -35,3 +35,20 @@ class BEMInputs(csdl.VariableGroup):
     mesh_parameters: BEMMeshParameters = None
 
 
+@dataclass
+class RotorAnalysisOutputs(csdl.VariableGroup):
+    axial_induced_velocity: csdl.Variable
+    tangential_induced_velocity: csdl.Variable
+    sectional_thrust: csdl.Variable
+    sectional_torque: csdl.Variable
+    total_thrust: csdl.Variable
+    total_torque: csdl.Variable
+    efficiency: csdl.Variable
+    figure_of_merit: csdl.Variable
+    thrust_coefficient: csdl.Variable
+    torque_coefficient: csdl.Variable
+    power_coefficient: csdl.Variable
+    residual: csdl.Variable = None
+    forces: csdl.Variable = None
+    moments: csdl.Variable = None
+

@@ -1,7 +1,7 @@
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import BEMInputs, BEMMeshParameters
 from BladeAD.core.airfoil.custom_airfoil_polar import TestAirfoilModel, SimpleAirfoilPolar
-from BladeAD.core.BEM.pitt_peters_model import PittPetersModel
+from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 import numpy as np
 
 recorder = csdl.Recorder(inline=True)
@@ -9,8 +9,8 @@ recorder.start()
 
 
 num_nodes = 1
-num_radial = 51
-num_azimuthal = 50
+num_radial = 31
+num_azimuthal = 30
 
 num_blades = 2
  
@@ -64,7 +64,7 @@ bem_inputs = BEMInputs(
 bem_model = PittPetersModel(
     num_nodes=num_nodes,
     airfoil_model=airfoil_model,
-    integration_scheme='Simpson',
+    integration_scheme='trapezoidal',
 )
 
 import time 
@@ -74,5 +74,6 @@ outputs = bem_model.evaluate(inputs=bem_inputs)
 t2 = time.time()
 
 print("time", t2-t1)
+# recorder.visualize_graph(trim_loops=True)
 recorder.stop()
 
