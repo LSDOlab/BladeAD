@@ -58,7 +58,8 @@ def compute_quantities_of_interest(
     C_P = 2 * np.pi * C_Q
 
     # Compute advance ratio and efficiency and FOM
-    Vx_num_nodes = Vx[num_nodes, 0, 0]
+    print(Vx.shape)
+    Vx_num_nodes = Vx[:, 0, 0]
     J = Vx_num_nodes / n / (2 * radius)
     eta = C_T * J / C_P
     FoM = C_T * (C_T/2)**0.5 / C_P

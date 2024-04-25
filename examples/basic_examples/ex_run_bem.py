@@ -1,7 +1,8 @@
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import BEMInputs, BEMMeshParameters
-from BladeAD.core.airfoil.custom_airfoil_polar import TestAirfoilModel, SimpleAirfoilPolar
+from BladeAD.core.airfoil.custom_airfoil_polar import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters, CompositeAirfoilModel
 from BladeAD.core.BEM.bem_model import BEMModel
+from BladeAD.utils.plot import make_polarplot
 import numpy as np
 from time import time
 
@@ -9,9 +10,9 @@ from time import time
 recorder = csdl.Recorder(inline=True)
 recorder.start()
 
-num_nodes = 1
+num_nodes = 4
 num_radial = 51
-num_azimuthal = 50
+num_azimuthal = 100
 
 num_blades = 2
 
@@ -24,25 +25,46 @@ chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
 twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
 radius = csdl.Variable(value=0.3048 / 2)
 mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 0] = 10.0 # np.linspace(0, 50.06, num_nodes)
+mesh_vel_np[:, 0] = np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
 # mesh_vel_np[:, 2] = -10.
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
 rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
-custom_polar = SimpleAirfoilPolar(
+polar_parameters_1 = ZeroDAirfoilPolarParameters(
     alpha_stall_minus=-10.,
     alpha_stall_plus=15.,
     Cl_stall_minus=-1.,
     Cl_stall_plus=1.5,
     Cd_stall_minus=0.02,
     Cd_stall_plus=0.06,
-    Cl_0=0.25,
+    Cl_0=0.5,
+    Cd_0=0.008,
+    Cl_alpha=5.1566,
+)
+
+polar_parameters_2 = ZeroDAirfoilPolarParameters(
+    alpha_stall_minus=-12.,
+    alpha_stall_plus=15.,
+    Cl_stall_minus=-1.,
+    Cl_stall_plus=1.5,
+    Cd_stall_minus=0.02,
+    Cd_stall_plus=0.06,
+    Cl_0=0.48,
     Cd_0=0.01,
     Cl_alpha=5.1566,
 )
 
-airfoil_model = TestAirfoilModel(
-    custom_polar=custom_polar,
+airfoil_model_1 = ZeroDAirfoilModel(
+    polar_parameters=polar_parameters_1,
+)
+
+airfoil_model_2 = ZeroDAirfoilModel(
+    polar_parameters=polar_parameters_2,
+)
+
+airfoil_model = CompositeAirfoilModel(
+    sections=[0., 0.5, 0.7, 1.],
+    airfoil_models=[airfoil_model_1, airfoil_model_1, airfoil_model_2]
 )
 
 bem_mesh_parameters = BEMMeshParameters(
@@ -79,6 +101,7 @@ print("thrust", T)
 print("torque", Q)
 print("eta", outputs.efficiency.value)
 
+make_polarplot(outputs.sectional_thrust, quantity_name='dT', plot_contours=False, fig_size=(14, 14), azimuthal_offset=-90)
 
 recorder.stop()
 

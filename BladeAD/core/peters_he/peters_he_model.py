@@ -14,7 +14,7 @@ class PetersHeModel:
         Q: int = 3,
         M: int = 3,
     ) -> None:
-        csdl.check_parameter(num_nodes, types=int)
+        csdl.check_parameter(num_nodes, "num_nodes", types=int)
         csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))
         csdl.check_parameter(Q, "Q", types=int)
         csdl.check_parameter(M, "M", types=int)

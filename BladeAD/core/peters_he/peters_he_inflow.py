@@ -75,14 +75,11 @@ def compute_L(Q, r_harmonic, m_harmonic, x=2, type='cos'):
                 break
             if r == 0:
                 multiplier = x**m
-                print("mult", multiplier)
             else:
                 if type == 'sin':
                     multiplier = x**(((m - r)**2)**0.5) - (-1)**min(r, m) * x**(m + r)
-                    print("mult", multiplier)
                 else:
                     multiplier = x**(((m - r)**2)**0.5) + (-1)**min(r, m) * x**(m + r)
-                    print("mult", multiplier)
             if isinstance(x, csdl.Variable):
                 sub_mat = csdl.Variable(shape=(sub_mat_size, sub_mat_size), value=0)
             else:
@@ -162,12 +159,10 @@ def compute_phi(r, j, radius, Q, print_var=False):
     term_1 = ((2 * j + 1) * compute_h(j, r))**0.5
     if print_var:
         pass
-        # print("term_1", term_1, "r", r, "j", j)
     summation = csdl.Variable(shape=radius.shape, value=0)
     for q in range(r, j, 2):
         if (q > Q) or (q > (j - 1)):
             break
-        print("q", q, j)
         num_1 = (-1)**((q - r) / 2)
         num_2 = double_factorial(j + q)
         den_1 = double_factorial(q - r)
@@ -175,14 +170,7 @@ def compute_phi(r, j, radius, Q, print_var=False):
         den_3 = double_factorial(j - q - 1)
         if print_var:
             pass
-            # print((radius**q * num_1 * num_2 / (den_1 *  den_2 * den_3)).value)
         summation = summation + radius**q * num_1 * num_2 / (den_1 *  den_2 * den_3)
-        # print("summation", num_1 * num_2 / (den_1 *  den_2 * den_3))
-        # print("summation",  (term_1 * radius**q * num_1 * num_2 / (den_1 *  den_2 * den_3)).value)
-        # print("hello", (radius**q * num_1 * num_2 / (den_1 *  den_2 * den_3)).value)
-    if print_var: 
-        pass
-        # print(summation.value)
     
     return term_1 * summation
 
@@ -303,6 +291,7 @@ def solve_for_steady_state_inflow(
     FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
 
     for i in range(num_nodes):
+        # Initialize implicit variables (state vector)
         state_vec = csdl.ImplicitVariable(shape=((ns_cos + ns_sin, )), value=-0)
         inflow = csdl.Variable(shape=(num_radial, num_azimuthal), value=0)
 
@@ -323,7 +312,7 @@ def solve_for_steady_state_inflow(
             sin_psi = csdl.sin(r * psi[i, :, :])
             inflow = inflow + phi_vec * state_vec[nss+ns_cos] * sin_psi
 
-        ux = (inflow + mu_z) * omega * radius_vec[i, :, :]
+        ux = (inflow + mu_z[i]) * omega[i] * radius_vec[i, :, :]
         
         phi = csdl.arctan(ux / Vt[i, :, :])
         
@@ -341,7 +330,7 @@ def solve_for_steady_state_inflow(
         # total thrust/torque and their coefficients
         thrust = integrate_quantity(dT, scheme=integration_scheme)
         torque = integrate_quantity(dQ, scheme=integration_scheme)
-        C_T = thrust / (rho * np.pi * radius**2 * (omega * radius) ** 2)
+        C_T = thrust / (rho * np.pi * radius**2 * (omega[i] * radius) ** 2)
 
         # Initialize loading coefficients
         tau_cos = csdl.Variable(shape=(ns_cos, ), value=0)
@@ -382,8 +371,8 @@ def solve_for_steady_state_inflow(
                 slices=csdl.slice[nss], value=integrate_quantity(L_sin, integration_scheme) 
             )
 
-        tau_cos = tau_cos / (2 * np.pi * rho * omega**2 * radius**4) #csdl.sum(tau_cos / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
-        tau_sin = tau_sin / (2 * np.pi * rho * omega**2 * radius**4) #csdl.sum(tau_sin / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
+        tau_cos = tau_cos / (2 * np.pi * rho * omega[i]**2 * radius**4) #csdl.sum(tau_cos / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
+        tau_sin = tau_sin / (2 * np.pi * rho * omega[i]**2 * radius**4) #csdl.sum(tau_sin / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
 
         # assemble loading vector
         tau = csdl.Variable(shape=(ns_cos + ns_sin, ), value=0)
@@ -392,8 +381,8 @@ def solve_for_steady_state_inflow(
 
         # compute tangential inflow via Newton iteration
         lam_0 = csdl.ImplicitVariable(shape=(1, ), value=0.1)
-        lam_0_res = lam_0 - C_T / (2 * (mu**2 + lam_0**2)**0.5)
-        d_lam0res_d_lam0 = 1 + C_T / 2 * (mu**2 + lam_0**2)**(-3/2) * lam_0
+        lam_0_res = lam_0 - C_T / (2 * (mu[i]**2 + lam_0**2)**0.5)
+        d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_0**2)**(-3/2) * lam_0
 
         lam_0_solver = csdl.nonlinear_solvers.GaussSeidel()
         lam_0_solver.add_state(lam_0, lam_0_res, state_update= lam_0 - lam_0_res / d_lam0res_d_lam0)
@@ -402,12 +391,12 @@ def solve_for_steady_state_inflow(
         lam = lam_m
 
         # assemble L matrices 
-        chi = csdl.arctan(mu / lam) # wake skew angle chi
+        chi = csdl.arctan(mu[i] / lam) # wake skew angle chi
         x = csdl.tan(((chi / 2)**2)**0.5)
 
         # Effective velocities
-        V_eff = (mu**2 + lam * (lam + lam_m)) / (mu ** 2 + lam**2) ** 0.5
-        V_eff_t = (mu ** 2 + lam**2) ** 0.5
+        V_eff = (mu[i]**2 + lam * (lam + lam_m)) / (mu[i] ** 2 + lam**2) ** 0.5
+        V_eff_t = (mu[i] ** 2 + lam**2) ** 0.5
 
         L_cos, vec_ind_cos = compute_L(Q, harmonics_r, harmonics_m, x, type='cos') 
         L_sin, vec_ind_sin = compute_L(Q, harmonics_r, harmonics_m, x, type='sin') 
@@ -449,12 +438,12 @@ def solve_for_steady_state_inflow(
         solver.run()
 
         # compute thrust/torque/power coefficient
-        CT = thrust / rho / (rpm / 60)**2 / (2 * radius)**4
-        CQ = torque / rho / (rpm / 60)**2 / (2 * radius)**5
+        CT = thrust / rho / (rpm[i] / 60)**2 / (2 * radius)**4
+        CQ = torque / rho / (rpm[i] / 60)**2 / (2 * radius)**5
         CP = 2 * np.pi * CQ
 
         # Compute advance ratio and efficiency and FOM
-        J = Vx[i, 0, 0] / (rpm / 60) / (2 * radius)
+        J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius)
         eta = CT * J / CP
         FoM = CT * (CT/2)**0.5 / CP
 
@@ -487,52 +476,6 @@ def solve_for_steady_state_inflow(
         power_coefficient=C_P_containter,
         residual=residual_container,
     )
-
-    # print(state_vec.value)
-    # print(tau_cos.value)
-    print("\n")
-    print(residual.value)
-
-    r = radius_vec[0, :, 0].value
-    psi_ = psi[0, 0, :].value
-
-    Psi, R = np.meshgrid(psi_, r)
-    # dT = (0.5 * rho * B* (Vt, (num_radial, num_azimuthal))**2 + ux**2) * csdl.reshape(chord_profile, (num_radial, num_azimuthal)) * Cl * dr) # ux #lam_exp_i
-    # dT =  0.5 * B * rho * (csdl.reshape(Vt, (num_radial, num_azimuthal))**2 + ux**2) * Cl * dr # ux #
-    # dT = 0.5 * B * rho * (ux**2 + csdl.reshape(Vt, (num_radial, num_azimuthal))**2) * csdl.reshape(chord_profile, (num_radial, num_azimuthal))  \
-    #                 * (Cl * csdl.cos(phi) - Cd * csdl.sin(phi)) * dr
-    # dT = dQ #inflow #= csdl.sum(phi_vec_cos * state_vec_exp[0:6, :, :] * cos_psi_exp + phi_vec_sin * state_vec_exp[6:, :, :] * sin_psi_exp, axes=(0, ))
-    
-    Psi = Psi - np.pi / 2
-    
-    print("inflow", inflow.value[20, 20])
-    print(thrust.value)
-    max_idx = np.unravel_index(np.argmax(dT.value.reshape(num_radial, num_azimuthal)), dT.value.reshape(num_radial, num_azimuthal).shape)
-    min_idx = np.unravel_index(np.argmin(dT.value.reshape(num_radial, num_azimuthal)), dT.value.reshape(num_radial, num_azimuthal).shape)
-
-
-    plt.figure(figsize=(8, 6))
-    plt.polar(Psi, R, alpha=0.)  # Plot the polar grid
-    plt.pcolormesh(Psi, R,  dT.value[:, :])  # Plot the color map representing thrust
-    plt.colorbar(label='Rotor Thrust')
-    plt.title('Azimuthal and Radial Variation of Rotor Thrust')
-    plt.plot(Psi[max_idx], R[max_idx], 'ro', label='Max Thrust')
-    plt.plot(Psi[min_idx], R[min_idx], 'bo', label='Min Thrust')
-    # plt.set_theta_zero_location("S")
-
-    # Add contour lines
-    contour_levels = np.linspace(np.min(dT.value), np.max(dT.value), 15)  # Adjust number of contour levels as needed
-    plt.contour(Psi, R, dT.value[:, :], levels=contour_levels, colors='black', linestyles='dashed')
-
-    # plt.figure()
-    # plt.plot((r / radius.value).flatten(), dT[:, 30].value)
-
-    # print(np.rad2deg(Psi[max_idx]))
-    # print(np.rad2deg(Psi[min_idx]))
-    # print(mu_z.value)
-    print(state_vec.value)
-
-    plt.show()
 
 
     return outputs

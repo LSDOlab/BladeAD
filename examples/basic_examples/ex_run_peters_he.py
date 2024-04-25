@@ -1,7 +1,7 @@
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import BEMInputs, BEMMeshParameters
 from BladeAD.core.airfoil.custom_airfoil_polar import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
-from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
+from BladeAD.core.peters_he.peters_he_model import PetersHeModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
 
@@ -60,7 +60,7 @@ bem_inputs = BEMInputs(
     mesh_velocity=mesh_velocity,
 )
 
-bem_model = PittPetersModel(
+bem_model = PetersHeModel(
     num_nodes=num_nodes,
     airfoil_model=airfoil_model,
     integration_scheme='trapezoidal',
