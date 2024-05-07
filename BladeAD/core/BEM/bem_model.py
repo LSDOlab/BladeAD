@@ -1,5 +1,5 @@
 from typing import Union
-from BladeAD.utils.var_groups import BEMInputs, RotorAnalysisOutputs
+from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorAnalysisOutputs
 from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_local_frame_velocities
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
 from BladeAD.core.BEM.compute_inflow_angle import compute_inflow_angle
@@ -21,7 +21,7 @@ class BEMModel:
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
 
-    def evaluate(self, inputs: BEMInputs) -> RotorAnalysisOutputs:
+    def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
         """Evaluate the BEM solver.
         """
         num_nodes = self.num_nodes

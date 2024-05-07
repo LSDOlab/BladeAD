@@ -1,6 +1,9 @@
 import csdl_alpha as csdl
-from BladeAD.utils.var_groups import BEMInputs, BEMMeshParameters
-from BladeAD.core.airfoil.custom_airfoil_polar import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters, CompositeAirfoilModel
+from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
+from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
+from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
+from BladeAD.core.airfoil.ml_airfoil_models.NACA_4412.naca_4412_model import NACA4412MLAirfoilModel
+from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.core.BEM.bem_model import BEMModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
@@ -12,7 +15,7 @@ recorder.start()
 
 num_nodes = 4
 num_radial = 51
-num_azimuthal = 100
+num_azimuthal = 50
 
 num_blades = 2
 
@@ -49,9 +52,9 @@ polar_parameters_2 = ZeroDAirfoilPolarParameters(
     Cl_stall_plus=1.5,
     Cd_stall_minus=0.02,
     Cd_stall_plus=0.06,
-    Cl_0=0.48,
+    Cl_0=0.4,
     Cd_0=0.01,
-    Cl_alpha=5.1566,
+    Cl_alpha=5.4566,
 )
 
 airfoil_model_1 = ZeroDAirfoilModel(
@@ -62,12 +65,27 @@ airfoil_model_2 = ZeroDAirfoilModel(
     polar_parameters=polar_parameters_2,
 )
 
-airfoil_model = CompositeAirfoilModel(
-    sections=[0., 0.5, 0.7, 1.],
-    airfoil_models=[airfoil_model_1, airfoil_model_1, airfoil_model_2]
+
+naca_4412_2d_model = TwoDMLAirfoilModel(
+    airfoil_name="naca_4412"
 )
 
-bem_mesh_parameters = BEMMeshParameters(
+clark_y_2d_model = TwoDMLAirfoilModel(
+    airfoil_name="clark_y"
+)
+
+mh_117_2d_model = TwoDMLAirfoilModel(
+    airfoil_name="mh_117"
+)
+
+airfoil_model = CompositeAirfoilModel(
+    sections=[0., 0.5, 0.7, 1.],
+    airfoil_models=[clark_y_2d_model, mh_117_2d_model, naca_4412_2d_model],
+)
+
+# airfoil_model = NACA4412MLAirfoilModel()
+
+bem_mesh_parameters = RotorMeshParameters(
     thrust_vector=thrust_vector,
     thrust_origin=thrust_origin,
     chord_profile=chord_profile,
@@ -78,7 +96,7 @@ bem_mesh_parameters = BEMMeshParameters(
     num_blades=num_blades,
 )
 
-bem_inputs = BEMInputs(
+bem_inputs = RotorAnalysisInputs(
     rpm=rpm,
     mesh_parameters=bem_mesh_parameters,
     mesh_velocity=mesh_velocity,
@@ -100,6 +118,8 @@ Q = outputs.total_torque.value
 print("thrust", T)
 print("torque", Q)
 print("eta", outputs.efficiency.value)
+
+print(outputs.residual.value.max())
 
 make_polarplot(outputs.sectional_thrust, quantity_name='dT', plot_contours=False, fig_size=(14, 14), azimuthal_offset=-90)
 

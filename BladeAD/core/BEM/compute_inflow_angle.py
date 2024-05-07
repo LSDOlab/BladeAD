@@ -51,24 +51,22 @@ def compute_inflow_angle(
 
     F = F_tip * F_hub
 
-    # Setting up residual function
+    # Setting up residual 
     Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
     Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
-
 
     term1 = Vt * (sigma * Cx - 4 * F * csdl.sin(phi)**2)
     term2 = Vx * (2 * F * csdl.sin(2 * phi) + Ct * sigma)
     
-    
-    # print(frame_velocity.value)
-
     bem_residual = term1 + term2
 
+    # Setting up bracketed search
     eps = 1e-7
     solver = csdl.nonlinear_solvers.BracketedSearch(tolerance=1e-12)
     solver.add_state(phi, bem_residual, bracket=(0., np.pi / 2 - eps))
     solver.run()
 
+    # Storing outputs
     implicit_bem_outputs = ImplicitModelOutputs(
         bem_residual=bem_residual,
         inflow_angle=phi,
@@ -76,13 +74,6 @@ def compute_inflow_angle(
         Cl=Cl,
         Cd=Cd,
     )
-
-    # print("term 1", term1.value)
-    # print("term 2", term2.value)
-    # print("vt", Vt.value)
-    # print("vt", Vt.shape)
-    # print("radius", radius.value)
-    # print("radius", radius_vec_exp.value)
 
     return implicit_bem_outputs
 

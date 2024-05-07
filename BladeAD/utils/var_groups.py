@@ -5,7 +5,7 @@ import numpy as np
 
 
 @dataclass
-class BEMMeshParameters(csdl.VariableGroup):
+class RotorMeshParameters(csdl.VariableGroup):
     thrust_vector : Union[np.ndarray, csdl.Variable]
     thrust_origin : Union[np.ndarray, csdl.Variable]
     chord_profile : Union[np.ndarray, csdl.Variable]
@@ -27,12 +27,12 @@ class AtmosStates(csdl.VariableGroup):
 
 
 @dataclass
-class BEMInputs(csdl.VariableGroup):
+class RotorAnalysisInputs(csdl.VariableGroup):
     atmos_states = AtmosStates()
     rpm: csdl.Variable = None
     ac_states: csdl.Variable = None
     mesh_velocity: csdl.Variable = None
-    mesh_parameters: BEMMeshParameters = None
+    mesh_parameters: RotorMeshParameters = None
 
 
 @dataclass

@@ -1,4 +1,4 @@
-from BladeAD.utils.var_groups import BEMInputs, RotorAnalysisOutputs
+from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorAnalysisOutputs
 from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_local_frame_velocities
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
 from BladeAD.core.peters_he.peters_he_inflow import solve_for_steady_state_inflow
@@ -19,6 +19,9 @@ class PetersHeModel:
         csdl.check_parameter(Q, "Q", types=int)
         csdl.check_parameter(M, "M", types=int)
 
+        if num_nodes < 1:
+            raise ValueError("num_nodes must be an integer greater or equal to 1")
+
         if Q > 3:
             raise NotImplementedError("Q greater than 3 has not been tested yet and will likely not converge")
 
@@ -29,7 +32,7 @@ class PetersHeModel:
         self.M = M
 
     
-    def evaluate(self, inputs: BEMInputs) -> RotorAnalysisOutputs:
+    def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
         if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:

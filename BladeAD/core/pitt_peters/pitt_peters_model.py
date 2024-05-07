@@ -1,4 +1,4 @@
-from BladeAD.utils.var_groups import BEMInputs, RotorAnalysisOutputs
+from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorAnalysisOutputs
 from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_local_frame_velocities
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
 from BladeAD.core.pitt_peters.pitt_peters_inflow import solve_for_steady_state_inflow
@@ -19,7 +19,7 @@ class PittPetersModel:
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
 
-    def evaluate(self, inputs: BEMInputs) -> RotorAnalysisOutputs:
+    def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
         if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
