@@ -25,6 +25,7 @@ def compute_inflow_angle(
     radius,
     hub_radius,
     sigma,
+    initial_value=None,
 
 ):
     mu = atmos_states.dynamic_viscosity
@@ -61,9 +62,16 @@ def compute_inflow_angle(
     bem_residual = term1 + term2
 
     # Setting up bracketed search
-    eps = 1e-7
-    solver = csdl.nonlinear_solvers.BracketedSearch(tolerance=1e-12)
-    solver.add_state(phi, bem_residual, bracket=(0., np.pi / 2 - eps))
+    if initial_value is None:
+        eps = 1e-7
+        solver = csdl.nonlinear_solvers.BracketedSearch(tolerance=1e-12, max_iter=50)
+        solver.add_state(phi, bem_residual, bracket=(0., np.pi / 2 - eps))
+    else:
+        solver = csdl.nonlinear_solvers.GaussSeidel()
+        solver.add_state(phi, bem_residual, state_update=phi + 0.025* bem_residual, initial_value=initial_value)
+        # eps = 1e-7
+        # solver = csdl.nonlinear_solvers.BracketedSearch(tolerance=1e-12)
+        # solver.add_state(phi, bem_residual, bracket=(0., np.pi / 2 - eps))
     solver.run()
 
     # Storing outputs

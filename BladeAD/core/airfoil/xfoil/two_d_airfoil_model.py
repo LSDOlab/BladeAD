@@ -565,6 +565,24 @@ class TwoDMLAirfoilModel:
         
 
 if __name__ == "__main__":
-    Cl_model, Cd_model, _, _ = train_two_d_airfoil_model("naca_4412", force_retrain=False, tune_hyper_parameters=False, num_trials=200, plot_model=True)
+    # Cl_model, Cd_model, _, _ = train_two_d_airfoil_model("naca_4412", force_retrain=False, tune_hyper_parameters=False, num_trials=200, plot_model=True)
 
+    recorder = csdl.Recorder(inline=True)
+    recorder.start()
+
+    alfa = csdl.ImplicitVariable(shape=(1, ), value=0.)
+
+    airfoil_model = TwoDMLAirfoilModel(
+        "naca_4412"
+    )
+
+    Re = 1e6
+    M = 0.
+    Cl, _ = airfoil_model.evaluate(alfa, Re, M)
+
+    solver = csdl.nonlinear_solvers.BracketedSearch(tolerance=1e-6)
+    solver.add_state(alfa, Cl, bracket=(np.deg2rad(-6), np.deg2rad(6)))
+    solver.run()
+
+    print(alfa.value * 180 /np.pi)
 

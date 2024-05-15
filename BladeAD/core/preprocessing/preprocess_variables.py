@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class PreProcessOutputs:
     thrust_vector_exp: csdl.Variable
+    thrust_origin_exp: csdl.Variable
     thrust_origin_vel_exp: csdl.Variable
     hub_radius: csdl.Variable
     element_width: csdl.Variable
@@ -26,6 +27,7 @@ def preprocess_input_variables(
     rpm: csdl.Variable,
     norm_hub_radius: float,
     thrust_vector: csdl.Variable,
+    thrust_origin: csdl.Variable,
     origin_velocity: csdl.Variable,
     num_blades: int,
 ) -> PreProcessOutputs:
@@ -39,6 +41,11 @@ def preprocess_input_variables(
         thrust_vector_exp = csdl.expand(thrust_vector, (num_nodes, 3), action="j->ij")
     else:
         thrust_vector_exp = thrust_vector
+
+    if thrust_origin.shape != (num_nodes, 3):
+        thrust_origin_exp = csdl.expand(thrust_origin, (num_nodes, 3), action="j->ij")
+    else:
+        thrust_origin_exp = thrust_origin
 
     if origin_velocity.shape != (num_nodes, 3):
         thrust_origin_vel_exp = csdl.expand(origin_velocity, (num_nodes, 3))
@@ -92,6 +99,7 @@ def preprocess_input_variables(
 
     pre_process_outputs = PreProcessOutputs(
         thrust_vector_exp=thrust_vector_exp,
+        thrust_origin_exp=thrust_origin_exp,
         thrust_origin_vel_exp=thrust_origin_vel_exp,
         hub_radius=r_hub,
         element_width=dr,

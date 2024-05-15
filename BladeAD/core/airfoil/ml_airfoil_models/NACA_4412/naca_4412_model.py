@@ -117,3 +117,23 @@ class NACA4412MLAirfoilModel:
         )
 
         return naca_4412_ml_cusotm_operation.evaluate(alpha, Re, Ma)
+    
+
+if __name__ == "__main__":
+    recorder = csdl.Recorder(inline=True)
+    recorder.start()
+
+    alfa = csdl.ImplicitVariable(shape=(1, ), value=0.)
+    Re = 6e6
+    M = 0.14
+
+    naca_airfoil_model = NACA4412MLAirfoilModel()
+    
+    Cl, _ = naca_airfoil_model.evaluate(alfa, Re, M)
+
+    solver = csdl.nonlinear_solvers.BracketedSearch()
+    solver.add_state(alfa, Cl, bracket=(-np.deg2rad(8), np.deg2rad(8)))
+    solver.run()
+
+    print(alfa.value * 180 / np.pi)
+

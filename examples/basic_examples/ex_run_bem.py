@@ -80,7 +80,7 @@ mh_117_2d_model = TwoDMLAirfoilModel(
 
 airfoil_model = CompositeAirfoilModel(
     sections=[0., 0.5, 0.7, 1.],
-    airfoil_models=[clark_y_2d_model, mh_117_2d_model, naca_4412_2d_model],
+    airfoil_models=[airfoil_model_1, airfoil_model_2, airfoil_model_1],
 )
 
 # airfoil_model = NACA4412MLAirfoilModel()
@@ -121,7 +121,7 @@ print("eta", outputs.efficiency.value)
 
 print(outputs.residual.value.max())
 
-make_polarplot(outputs.sectional_thrust, quantity_name='dT', plot_contours=False, fig_size=(14, 14), azimuthal_offset=-90)
+make_polarplot(outputs.sectional_thrust, quantity_name='dT', plot_contours=False, fig_size=(14, 14), azimuthal_offset=0)
 
 recorder.stop()
 
