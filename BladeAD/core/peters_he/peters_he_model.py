@@ -44,6 +44,7 @@ class PetersHeModel:
 
         shape = (num_nodes, num_radial, num_azimuthal)
         thrust_vector = inputs.mesh_parameters.thrust_vector
+        thrust_origin = inputs.mesh_parameters.thrust_origin
         mesh_velocity = inputs.mesh_velocity
         radius = inputs.mesh_parameters.radius
         chord_profile = inputs.mesh_parameters.chord_profile
@@ -57,6 +58,7 @@ class PetersHeModel:
             twist_profile=twist_profile,
             norm_hub_radius=norm_hub_radius,
             thrust_vector=thrust_vector,
+            thrust_origin=thrust_origin,
             origin_velocity=mesh_velocity,
             rpm=rpm,
             num_blades=num_blades,

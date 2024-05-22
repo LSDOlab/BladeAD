@@ -94,6 +94,7 @@ bem_mesh_parameters = RotorMeshParameters(
     num_radial=num_radial,
     num_azimuthal=num_azimuthal,
     num_blades=num_blades,
+    norm_hub_radius=0.2,
 )
 
 bem_inputs = RotorAnalysisInputs(
