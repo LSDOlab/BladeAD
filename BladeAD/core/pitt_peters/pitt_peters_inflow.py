@@ -2,6 +2,8 @@ import csdl_alpha as csdl
 import numpy as np
 from BladeAD.utils.var_groups import RotorAnalysisOutputs
 from BladeAD.utils.integration_schemes import integrate_quantity
+from BladeAD.utils.smooth_quantities_spanwise import smooth_quantities_spanwise
+from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
 
 
 def solve_for_steady_state_inflow(
@@ -20,6 +22,8 @@ def solve_for_steady_state_inflow(
     atmos_states,
     num_blades,
     dr,
+    hub_radius, 
+    radius_vec_exp,
     integration_scheme, 
 ) -> RotorAnalysisOutputs:
     # Pre-processing
@@ -78,11 +82,28 @@ def solve_for_steady_state_inflow(
         alpha = twist_profile[i, :, :] - phi
         Cl, Cd = airfoil_model.evaluate(alpha, Re[i, :, :], Ma[i, :, :])
 
+        # Prandtl tip losses 
+        f_tip = num_blades / 2 * (radius - radius_vec_exp[i, :, :]) / radius / csdl.sin(phi)
+        f_hub = num_blades / 2 * (radius_vec_exp[i, :, :] - hub_radius) / hub_radius / csdl.sin(phi)
+
+        F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
+        F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
+
+        F = F_tip * F_hub
+
+        # Smooth the transition if airfoil model consists of multiple airfoils
+        if isinstance(airfoil_model, CompositeAirfoilModel):
+            if airfoil_model.smoothing:
+                window = airfoil_model.transition_window
+                indices = airfoil_model.stop_indices
+                Cl = smooth_quantities_spanwise(Cl, indices, window)
+                Cd = smooth_quantities_spanwise(Cd, indices, window)
+
         # Compute sectional thrust, torque, moments and coefficients
         Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
-        dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr
-        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr
+        dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
+        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
         dMx = radius_vec[i, :, :] * csdl.sin(psi[i, :, :]) * dT
         dMy = radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
 
@@ -99,7 +120,7 @@ def solve_for_steady_state_inflow(
         lam_0_res = lam_0 - C_T / (2 * (mu[i]**2 + lam_0**2)**0.5)
         d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_0**2)**(-3/2) * lam_0
 
-        lam_0_solver = csdl.nonlinear_solvers.GaussSeidel()
+        lam_0_solver = csdl.nonlinear_solvers.GaussSeidel(elementwise_states=True)
         lam_0_solver.add_state(lam_0, lam_0_res, state_update= lam_0 - lam_0_res / d_lam0res_d_lam0)
         lam_0_solver.run()
 
@@ -133,7 +154,7 @@ def solve_for_steady_state_inflow(
         # basic fixed point iteration for state update
         state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
-        solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100)
+        solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100, elementwise_states=True)
         solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
         solver.run()
 

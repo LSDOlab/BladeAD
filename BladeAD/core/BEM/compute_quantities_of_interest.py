@@ -2,6 +2,8 @@ import csdl_alpha as csdl
 import numpy as np
 from BladeAD.utils.var_groups import RotorAnalysisOutputs
 from BladeAD.utils.integration_schemes import integrate_quantity
+from BladeAD.utils.smooth_quantities_spanwise import smooth_quantities_spanwise
+from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
 
 
 def compute_quantities_of_interest(
@@ -21,6 +23,7 @@ def compute_quantities_of_interest(
     radius: csdl.Variable,
     num_blades: int,
     integration_scheme: str,
+    airfoil_model=None,
 ) -> RotorAnalysisOutputs:
     
     num_nodes = shape[0]
@@ -37,6 +40,16 @@ def compute_quantities_of_interest(
 
     # tangential-induced velocity
     ut = 2 * Vt * sigma * Ct / (2 * F * csdl.sin(2 * phi) + sigma * Ct)
+
+    # Do smoothing if specified by user (do by default)
+    if isinstance(airfoil_model, CompositeAirfoilModel):
+        if airfoil_model.smoothing:
+            window = airfoil_model.transition_window
+            indices = airfoil_model.stop_indices
+            ux = smooth_quantities_spanwise(ux, indices, window)
+            ut = smooth_quantities_spanwise(ut, indices, window)
+            Cx = smooth_quantities_spanwise(Cx, indices, window)
+            Ct = smooth_quantities_spanwise(Ct, indices, window)
 
     # compute sectional thrust and torque
     # via momentum theory
@@ -58,17 +71,17 @@ def compute_quantities_of_interest(
     C_P = 2 * np.pi * C_Q
 
     # Compute advance ratio and efficiency and FOM
-    print(Vx.shape)
     Vx_num_nodes = Vx[:, 0, 0]
     J = Vx_num_nodes / n / (2 * radius)
     eta = C_T * J / C_P
     FoM = C_T * (C_T/2)**0.5 / C_P
 
+
     bem_outputs = RotorAnalysisOutputs(
         axial_induced_velocity=ux,
         tangential_induced_velocity=ut,
-        sectional_thrust=dT,
-        sectional_torque=dQ,
+        sectional_thrust=dT2,
+        sectional_torque=dQ2,
         total_thrust=thrust,
         total_torque=torque,
         efficiency=eta,

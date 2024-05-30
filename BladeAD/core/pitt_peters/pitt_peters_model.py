@@ -77,6 +77,8 @@ class PittPetersModel:
             atmos_states=inputs.atmos_states,
             num_blades=num_blades,
             dr=pre_process_outputs.element_width,
+            radius_vec_exp=pre_process_outputs.radius_vector_exp,
+            hub_radius=pre_process_outputs.hub_radius,
             integration_scheme=self.integration_scheme,
         )
 

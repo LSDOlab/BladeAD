@@ -15,6 +15,8 @@ import csdl_alpha as csdl
 # Run on GPU if available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+torch.set_default_dtype(torch.float64)
+
 def define_model(trial):
     n_layers = trial.suggest_int("n_layers", 2, 6)
     layers = []
@@ -237,7 +239,7 @@ def train_two_d_airfoil_model(
             aoa_total = inputs[:, 1]
 
             inputs_scaled = (inputs - X_min) / (X_max - X_min)
-            inputs_torch = torch.tensor(inputs_scaled, dtype=torch.float32).to(device)
+            inputs_torch = torch.tensor(inputs_scaled, dtype=torch.float64).to(device)
 
             Cl = Cl_model(inputs_torch).cpu().detach().numpy().flatten()
             Cd = Cd_model(inputs_torch).cpu().detach().numpy().flatten()
@@ -281,10 +283,10 @@ def get_ml_model(input_data, output_data, data_directory_path, type_="Cl", tune_
 
 
     # Convert to 2D PyTorch tensors
-    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
-    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1).to(device)
-    X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
-    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1).to(device)
+    X_train = torch.tensor(X_train, dtype=torch.float64).to(device)
+    y_train = torch.tensor(y_train, dtype=torch.float64).reshape(-1, 1).to(device)
+    X_test = torch.tensor(X_test, dtype=torch.float64).to(device)
+    y_test = torch.tensor(y_test, dtype=torch.float64).reshape(-1, 1).to(device)
 
     def get_data(batch_size):
         train_loader = torch.utils.data.DataLoader(
@@ -480,10 +482,29 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
     def evaluate(self, alpha, Re, Ma):
         self.declare_input("alpha", alpha)        
         self.declare_input("Re", Re)        
-        self.declare_input("Ma", Ma)        
+        self.declare_input("Ma", Ma)
 
-        Cl = self.create_output("Cl", alpha.shape)
-        Cd = self.create_output("Cd", alpha.shape)
+        shape = alpha.shape
+
+        if len(shape) == 3:
+            indices = np.arange(shape[0] * shape[1] * shape[2])
+
+        elif len(shape) == 2:
+            indices = np.arange(shape[0] * shape[1])
+
+        else:
+            raise NotImplementedError
+
+        Cl = self.create_output("Cl", shape)
+        Cd = self.create_output("Cd", shape)
+
+        self.declare_derivative_parameters("Cl", "alpha", rows=indices, cols=indices)
+        self.declare_derivative_parameters("Cl", "Re", rows=indices, cols=indices)
+        self.declare_derivative_parameters("Cl", "Ma", dependent=False)
+
+        self.declare_derivative_parameters("Cd", "alpha", rows=indices, cols=indices)
+        self.declare_derivative_parameters("Cd", "Re", rows=indices, cols=indices)
+        self.declare_derivative_parameters("Cd", "Ma", dependent=False)
 
         return Cl, Cd
 
@@ -504,13 +525,69 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
         input_tensor[:, 1] = alpha.flatten()
 
         input_tensor_scaled = (input_tensor - X_min) / (X_max - X_min)
-        input_tensor_torch = torch.tensor(input_tensor_scaled, dtype=torch.float32).to(device)
+        input_tensor_torch = torch.tensor(input_tensor_scaled, dtype=torch.float64).to(device)
 
         Cl = Cl_model(input_tensor_torch).cpu().detach().numpy()
         Cd = Cd_model(input_tensor_torch).cpu().detach().numpy()
 
         output_vals["Cl"] = Cl.reshape(shape)
         output_vals["Cd"] = Cd.reshape(shape)
+
+    def compute_derivatives(self, input_vals, outputs, derivatives):
+        Cl_model = self.parameters["Cl_model"]
+        Cd_model = self.parameters["Cd_model"]
+        X_min = self.parameters["X_min"]
+        X_max = self.parameters["X_max"]
+
+        alpha = input_vals["alpha"]
+        Re = input_vals["Re"]
+        Ma = input_vals["Ma"]
+
+        shape = alpha.shape
+
+        if len(shape) == 3:
+            indices = np.arange(shape[0] * shape[1] * shape[2])
+
+        elif len(shape) == 2:
+            indices = np.arange(shape[0] * shape[1])
+
+        else:
+            raise NotImplementedError
+        
+        size = len(indices)
+
+        input_tensor = np.zeros((size, 2))
+        input_tensor[:, 0] = Re.flatten()
+        input_tensor[:, 1] = alpha.flatten()
+
+        input_tensor_scaled = (input_tensor - X_min) / (X_max - X_min)
+        input_tensor_torch_scaled = torch.tensor(input_tensor_scaled, dtype=torch.float64).to(device)
+
+        # Cl jacobian
+        d_Cl_d_scaled_tensor = torch.autograd.functional.jacobian(Cl_model, input_tensor_torch_scaled).cpu().detach().numpy()
+        d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.reshape((size, size, 2))
+        
+        # Cd jacobian
+        d_Cd_d_scaled_tensor = torch.autograd.functional.jacobian(Cd_model, input_tensor_torch_scaled).cpu().detach().numpy()
+        d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.reshape((size, size, 2))
+
+        # Chain rule
+        d_scaled_tensor_d_tensor = 1/(X_max - X_min)
+        d_tensor_d_inputs = np.ones((size, 2))
+
+        dCl_d_tensor = np.einsum('ijk, lk->ijk', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
+        dCl_d_inputs = np.einsum('ijk, jk->ik', dCl_d_tensor, d_tensor_d_inputs)
+
+        dCd_d_tensor = np.einsum('ijk, lk->ijk', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
+        dCd_d_inputs = np.einsum('ijk, jk->ik', dCd_d_tensor, d_tensor_d_inputs)
+        
+        # Assign derivatives
+        derivatives["Cl", "Re"] = dCl_d_inputs[:, 0]
+        derivatives["Cl", "alpha"] = dCl_d_inputs[:, 1]
+
+        derivatives["Cd", "Re"] = dCd_d_inputs[:, 0]
+        derivatives["Cd", "alpha"] = dCd_d_inputs[:, 1]
+
 
 
 class TwoDMLAirfoilModel:

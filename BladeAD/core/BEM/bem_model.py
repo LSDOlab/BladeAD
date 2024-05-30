@@ -92,24 +92,6 @@ class BEMModel:
             sigma=pre_process_outputs.sigma,
         )
 
-        # # Solve for phi with NL Gauss--Seidel (Newton in the future)
-        # # if bracketed search did not converge
-        # bem_implicit_outputs = compute_inflow_angle(
-        #     shape=shape,
-        #     num_blades=num_blades,
-        #     airfoil_model=self.airfoil_model,
-        #     atmos_states=inputs.atmos_states,
-        #     chord_profile=pre_process_outputs.chord_profile_exp,
-        #     twist_profile=pre_process_outputs.twist_profile_exp,
-        #     frame_velocity=local_frame_velocities.local_frame_velocity,
-        #     tangential_velocity=local_frame_velocities.tangential_velocity,
-        #     radius_vec_exp=pre_process_outputs.radius_vector_exp,
-        #     radius=radius,
-        #     hub_radius=pre_process_outputs.hub_radius,
-        #     sigma=pre_process_outputs.sigma,
-        #     initial_value=bem_implicit_outputs_1.inflow_angle,
-        # )
-
         # Post-processing
         bem_outputs = compute_quantities_of_interest(
             shape=shape,
@@ -128,6 +110,7 @@ class BEMModel:
             dr=pre_process_outputs.element_width,
             num_blades=num_blades,
             integration_scheme=self.integration_scheme,
+            airfoil_model=self.airfoil_model,
         )
 
         bem_outputs.residual = bem_implicit_outputs.bem_residual

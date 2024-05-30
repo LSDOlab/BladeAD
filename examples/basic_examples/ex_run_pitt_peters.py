@@ -14,7 +14,7 @@ recorder.start()
 
 num_nodes = 4
 num_radial = 31
-num_azimuthal = 100
+num_azimuthal = 30
 
 num_blades = 2
  
@@ -30,37 +30,37 @@ mesh_vel_np[:, 2] = 0
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
 rpm = csdl.Variable(value=4058 * np.ones((num_nodes,)))
 
-# polar_parameters_1 = ZeroDAirfoilPolarParameters(
-#     alpha_stall_minus=-10.,
-#     alpha_stall_plus=15.,
-#     Cl_stall_minus=-1.,
-#     Cl_stall_plus=1.5,
-#     Cd_stall_minus=0.02,
-#     Cd_stall_plus=0.06,
-#     Cl_0=0.5,
-#     Cd_0=0.008,
-#     Cl_alpha=5.1566,
-# )
+polar_parameters_1 = ZeroDAirfoilPolarParameters(
+    alpha_stall_minus=-10.,
+    alpha_stall_plus=15.,
+    Cl_stall_minus=-1.,
+    Cl_stall_plus=1.5,
+    Cd_stall_minus=0.02,
+    Cd_stall_plus=0.06,
+    Cl_0=0.5,
+    Cd_0=0.008,
+    Cl_alpha=5.1566,
+)
 
-# polar_parameters_2 = ZeroDAirfoilPolarParameters(
-#     alpha_stall_minus=-12.,
-#     alpha_stall_plus=15.,
-#     Cl_stall_minus=-1.,
-#     Cl_stall_plus=1.5,
-#     Cd_stall_minus=0.02,
-#     Cd_stall_plus=0.06,
-#     Cl_0=0.48,
-#     Cd_0=0.01,
-#     Cl_alpha=5.1566,
-# )
+polar_parameters_2 = ZeroDAirfoilPolarParameters(
+    alpha_stall_minus=-12.,
+    alpha_stall_plus=15.,
+    Cl_stall_minus=-1.,
+    Cl_stall_plus=1.5,
+    Cd_stall_minus=0.02,
+    Cd_stall_plus=0.06,
+    Cl_0=0.48,
+    Cd_0=0.01,
+    Cl_alpha=5.1566,
+)
 
-# airfoil_model_1 = ZeroDAirfoilModel(
-#     polar_parameters=polar_parameters_1,
-# )
+airfoil_model_1 = ZeroDAirfoilModel(
+    polar_parameters=polar_parameters_1,
+)
 
-# airfoil_model_2 = ZeroDAirfoilModel(
-#     polar_parameters=polar_parameters_2,
-# )
+airfoil_model_2 = ZeroDAirfoilModel(
+    polar_parameters=polar_parameters_2,
+)
 
 # airfoil_model = CompositeAirfoilModel(
 #     sections=[0., 0.5, 0.7, 1.],
@@ -81,7 +81,7 @@ mh_117_2d_model = TwoDMLAirfoilModel(
 
 airfoil_model = CompositeAirfoilModel(
     sections=[0., 0.35, 0.7, 1.],
-    airfoil_models=[naca_4412_2d_model, mh_117_2d_model, clark_y_2d_model],
+    airfoil_models=[airfoil_model_1, airfoil_model_1, airfoil_model_2],
 )
 
 

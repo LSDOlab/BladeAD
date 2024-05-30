@@ -24,11 +24,17 @@ class CompositeAirfoilModel:
             self, 
             sections : list = [],
             airfoil_models : list = [],
+            smoothing=True,
+            transition_window: int = 3,
     ) -> None:
         self.sections = sections
         self.airfoil_models = airfoil_models
+        self.smoothing = smoothing
+        self.transition_window = transition_window
         csdl.check_parameter(airfoil_models, "airfoil_models", types=list)
         csdl.check_parameter(sections, "sections", types=list)
+        csdl.check_parameter(smoothing, "smoothing", types=bool)
+        csdl.check_parameter(transition_window, "transition_window", types=int)
 
         if len(sections) < 3:
             raise ValueError("Need at least two sections (i.e., three points) to define multiple airfoils.")
@@ -88,20 +94,23 @@ class CompositeAirfoilModel:
             else:
                 raise NotImplementedError(f"unkown shape {shape}")
         
-        # TODO for later
-        # if self.smooth_transition:
-        self.transition_window = 3
-        for stop_index in stop_indices:
-            if len(shape) == 3:
-                for i in csdl.frange(2 * self.transition_window):
-                    index = stop_index + i - self.transition_window
-                    Cl = Cl.set(csdl.slice[:, index, :], csdl.average(Cl[:, index-2:index+2, :], axes=(1, )))
-                    Cd = Cd.set(csdl.slice[:, index, :], csdl.average(Cd[:, index-2:index+2, :], axes=(1, )))
 
-            elif len(shape) == 2:
-                for i in csdl.frange(2 * self.transition_window):
-                    index = stop_index + i - self.transition_window
-                    Cl = Cl.set(csdl.slice[index, :], csdl.average(Cl[index-2:index+2, :], axes=(0, )))
-                    Cd = Cd.set(csdl.slice[index, :], csdl.average(Cd[index-2:index+2, :], axes=(0, )))
+        if self.smoothing:
+            self.stop_indices = stop_indices
+            # for stop_index in stop_indices:
+            #     if len(shape) == 3:
+            #         for i in csdl.frange(2 * self.transition_window):
+            #             index = stop_index + i - self.transition_window
+            #             Cl = Cl.set(csdl.slice[:, index, :], csdl.average(Cl[:, index-2:index+2, :], axes=(1, )))
+            #             Cd = Cd.set(csdl.slice[:, index, :], csdl.average(Cd[:, index-2:index+2, :], axes=(1, )))
+
+            #     elif len(shape) == 2:
+            #         for i in csdl.frange(2 * self.transition_window):
+            #             index = stop_index + i - self.transition_window
+            #             Cl = Cl.set(csdl.slice[index, :], csdl.average(Cl[index-2:index+2, :], axes=(0, )))
+            #             Cd = Cd.set(csdl.slice[index, :], csdl.average(Cd[index-2:index+2, :], axes=(0, )))
+
+        else: 
+            self.stop_indices = None
 
         return Cl, Cd

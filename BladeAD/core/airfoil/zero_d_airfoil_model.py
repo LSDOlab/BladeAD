@@ -219,11 +219,52 @@ class ZeroDAirfoilModel:
         )
 
         return Cl, Cd
+    
+    def _predict_derivatives(self, AoA_array):
+        aoa = AoA_array.flatten()
+        cond_list = [
+            aoa <= (self.pre_process_parameters.aoa_stall_m-self.pre_process_parameters.eps),
+            (aoa > (self.pre_process_parameters.aoa_stall_m-self.pre_process_parameters.eps)) & (aoa <= (self.pre_process_parameters.aoa_stall_m+self.pre_process_parameters.eps)),
+            (aoa > (self.pre_process_parameters.aoa_stall_m+self.pre_process_parameters.eps)) & (aoa <= (self.pre_process_parameters.aoa_stall_p-self.pre_process_parameters.eps)),
+            (aoa > (self.pre_process_parameters.aoa_stall_p-self.pre_process_parameters.eps)) & (aoa <= (self.pre_process_parameters.aoa_stall_p+self.pre_process_parameters.eps)),
+            aoa > (self.pre_process_parameters.aoa_stall_p+self.pre_process_parameters.eps)
+        ]
+
+        dCl_daoa_fun_list = [
+            lambda aoa : 2 * self.pre_process_parameters.A1 * np.cos(2 * aoa) - self.pre_process_parameters.A2_m * (np.cos(aoa) * (1+1/(np.sin(aoa))**2)),
+            lambda aoa : self.pre_process_parameters.coeff_cl_m[2] + 2 * self.pre_process_parameters.coeff_cl_m[1] * aoa + 3 * self.pre_process_parameters.coeff_cl_m[0] * aoa**2,
+            lambda aoa : self.pre_process_parameters.Cl_alpha,
+            lambda aoa : self.pre_process_parameters.coeff_cl_p[2] + 2 * self.pre_process_parameters.coeff_cl_p[1] * aoa + 3 * self.pre_process_parameters.coeff_cl_p[0] * aoa**2,
+            lambda aoa : 2 * self.pre_process_parameters.A1 * np.cos(2 * aoa) - self.pre_process_parameters.A2_p * (np.cos(aoa) * (1+1/(np.sin(aoa))**2)),
+        ]
+
+        dCd_daoa_fun_list = [
+            lambda aoa : self.pre_process_parameters.B1 * np.sin(2 * aoa) - self.pre_process_parameters.B2_m * np.sin(aoa),
+            lambda aoa : self.pre_process_parameters.coeff_cd_m[2] + 2 * self.pre_process_parameters.coeff_cd_m[1] * aoa + 3 * self.pre_process_parameters.coeff_cd_m[0] * aoa**2,
+            lambda aoa : 2 * self.pre_process_parameters.k * self.pre_process_parameters.Cl_alpha * (self.pre_process_parameters.Cl_alpha * aoa),
+            lambda aoa : self.pre_process_parameters.coeff_cd_p[2] + 2 * self.pre_process_parameters.coeff_cd_p[1] * aoa + 3 * self.pre_process_parameters.coeff_cd_p[0] * aoa**2,
+            lambda aoa : self.pre_process_parameters.B1 * np.sin(2 * aoa) - self.pre_process_parameters.B2_p * np.sin(aoa),
+        ]    
+
+        dCl_daoa = np.piecewise(
+            aoa,
+            cond_list,
+            dCl_daoa_fun_list,
+        )
+
+        dCd_daoa = np.piecewise(
+            aoa,
+            cond_list,
+            dCd_daoa_fun_list,
+        )
+
+        return dCl_daoa, dCd_daoa
 
     def evaluate(self, alpha, Re, Ma):
         
         zero_d_airfoil_model = ZeroDAirfoilCustomOperation(
-            airfoil_function=self._predict_values
+            airfoil_function=self._predict_values,
+            airfoil_function_derivative=self._predict_derivatives,
         )
 
         return zero_d_airfoil_model.evaluate(alpha)
@@ -232,12 +273,24 @@ class ZeroDAirfoilModel:
 class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
     def initialize(self):
         self.parameters.declare("airfoil_function")
+        self.parameters.declare("airfoil_function_derivative")
 
     def evaluate(self, alpha):
-        self.declare_input("alpha", alpha)
+        shape = alpha.shape
 
-        Cl = self.create_output("Cl", alpha.shape)
-        Cd = self.create_output("Cd", alpha.shape)
+        self.declare_input("alpha", alpha)
+        Cl = self.create_output("Cl", shape)
+        Cd = self.create_output("Cd", shape)
+
+        if len(shape) == 2:
+            indices = np.arange(shape[0] * shape[1])
+        elif len(shape) == 3:
+            indices = np.arange(shape[0] * shape[1] * shape[2])
+        else: 
+            raise NotImplementedError
+
+        self.declare_derivative_parameters("Cl", "alpha", rows=indices, cols=indices)
+        self.declare_derivative_parameters("Cd", "alpha", rows=indices, cols=indices)
         
         return Cl, Cd
     
@@ -252,4 +305,10 @@ class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
         output_vals["Cd"] = Cd.reshape(shape)
 
     def compute_derivatives(self, inputs, outputs, derivatives):
-        raise NotImplementedError
+        airfoil_function_derivative = self.parameters["airfoil_function_derivative"]
+        alpha = inputs["alpha"]
+
+        dCl_daoa, dCd_daoa = airfoil_function_derivative(alpha)
+        derivatives["Cl", "alpha"] = dCl_daoa
+        derivatives["Cl", "alpha"] = dCd_daoa
+

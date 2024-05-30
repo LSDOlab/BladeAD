@@ -3,6 +3,8 @@ import csdl_alpha as csdl
 import matplotlib.pyplot as plt
 from BladeAD.utils.integration_schemes import integrate_quantity
 from BladeAD.utils.var_groups import RotorAnalysisOutputs
+from BladeAD.utils.smooth_quantities_spanwise import smooth_quantities_spanwise
+from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
 
 
 def double_factorial(n):
@@ -174,7 +176,6 @@ def compute_phi(r, j, radius, Q, print_var=False):
     
     return term_1 * summation
 
-
 def solve_for_steady_state_inflow(
     shape: tuple,
     psi: csdl.Variable,
@@ -192,8 +193,11 @@ def solve_for_steady_state_inflow(
     num_blades: int,
     dr: csdl.Variable,
     integration_scheme: str, 
+    hub_radius,
+    radius_vec_exp,
     Q : int = 3,
     M : int = 3,
+    initial_value: csdl.Variable = None
 ) -> RotorAnalysisOutputs:
     """Solve the Peters--He [1] dynamic inflow model for steady state.
     The implementation procedure is based on a Master's thesis by Kevin Li [2].
@@ -320,12 +324,29 @@ def solve_for_steady_state_inflow(
         alpha = twist_profile[i, :, :] - phi
         Cl, Cd = airfoil_model.evaluate(alpha, Re[i, :, :], Ma[i, :, :])
 
+        # Smooth the transition if airfoil model consists of multiple airfoils
+        if isinstance(airfoil_model, CompositeAirfoilModel):
+            if airfoil_model.smoothing:
+                window = airfoil_model.transition_window
+                indices = airfoil_model.stop_indices
+                Cl = smooth_quantities_spanwise(Cl, indices, window)
+                Cd = smooth_quantities_spanwise(Cd, indices, window)
+
+        # Prandtl tip losses 
+        f_tip = num_blades / 2 * (radius - radius_vec_exp[i, :, :]) / radius / csdl.sin(phi)
+        f_hub = num_blades / 2 * (radius_vec_exp[i, :, :] - hub_radius) / hub_radius / csdl.sin(phi)
+
+        F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
+        F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
+
+        F = F_tip * F_hub
+
         # Compute thrust (and torque)
         # sectional (dT)
         Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
-        dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr
-        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr
+        dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
+        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
 
         # total thrust/torque and their coefficients
         thrust = integrate_quantity(dT, scheme=integration_scheme)
@@ -384,7 +405,7 @@ def solve_for_steady_state_inflow(
         lam_0_res = lam_0 - C_T / (2 * (mu[i]**2 + lam_0**2)**0.5)
         d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_0**2)**(-3/2) * lam_0
 
-        lam_0_solver = csdl.nonlinear_solvers.GaussSeidel()
+        lam_0_solver = csdl.nonlinear_solvers.GaussSeidel(elementwise_states=True)
         lam_0_solver.add_state(lam_0, lam_0_res, state_update= lam_0 - lam_0_res / d_lam0res_d_lam0)
         lam_0_solver.run()
         lam_m = lam_0 * 3**0.5
@@ -429,12 +450,13 @@ def solve_for_steady_state_inflow(
         # define residual based on steady state assumption
         residual = csdl.matvec(L_block, tau) - state_vec
 
-        # basic fixed point iteration for state update
-        state_update = 0.1 * (csdl.matvec(L_block, tau) - state_vec)
+        if initial_value is None:
+            # basic fixed point iteration for state update
+            # state_update = 0.1 * (csdl.matvec(L_block, tau) - state_vec)
+            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=1000, elementwise_states=True)
+            solver.add_state(state_vec, residual, state_update=state_vec + 0.1 * residual)
+            # solver.add_state(state_vec, residual, state_update=state_vec + state_update)
 
-        solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=500)
-        # solver.add_state(state_vec, residual, state_update=state_vec + 0.01 * residual)
-        solver.add_state(state_vec, residual, state_update=state_vec + state_update)
         solver.run()
 
         # compute thrust/torque/power coefficient
@@ -476,6 +498,8 @@ def solve_for_steady_state_inflow(
         power_coefficient=C_P_containter,
         residual=residual_container,
     )
+
+    outputs.state_vec = state_vec
 
 
     return outputs
