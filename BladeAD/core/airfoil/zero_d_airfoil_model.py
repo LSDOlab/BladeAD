@@ -271,9 +271,12 @@ class ZeroDAirfoilModel:
         
 
 class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
-    def initialize(self):
-        self.parameters.declare("airfoil_function")
-        self.parameters.declare("airfoil_function_derivative")
+    def __init__(self, airfoil_function,
+                   airfoil_function_derivative):
+        self.airfoil_function = airfoil_function
+        self.airfoil_function_derivative = airfoil_function_derivative
+
+        super().__init__()
 
     def evaluate(self, alpha):
         shape = alpha.shape
@@ -295,7 +298,7 @@ class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
         return Cl, Cd
     
     def compute(self, input_vals, output_vals):
-        airfoil_function = self.parameters["airfoil_function"]
+        airfoil_function = self.airfoil_function
         alpha = input_vals["alpha"]
         shape = alpha.shape
 
@@ -305,7 +308,7 @@ class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
         output_vals["Cd"] = Cd.reshape(shape)
 
     def compute_derivatives(self, inputs, outputs, derivatives):
-        airfoil_function_derivative = self.parameters["airfoil_function_derivative"]
+        airfoil_function_derivative = self.airfoil_function_derivative
         alpha = inputs["alpha"]
 
         dCl_daoa, dCd_daoa = airfoil_function_derivative(alpha)

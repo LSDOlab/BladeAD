@@ -117,7 +117,7 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model,
+    airfoil_model=NACA4412MLAirfoilModel(),
     integration_scheme='trapezoidal',
 )
 

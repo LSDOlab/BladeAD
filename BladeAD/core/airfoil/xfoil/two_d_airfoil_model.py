@@ -473,12 +473,19 @@ def build_model_from_parameters(params_dict, X_train, X_test, y_train, y_test, d
     
 
 class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
-    def initialize(self):
-        self.parameters.declare("Cl_model")
-        self.parameters.declare("Cd_model")
-        self.parameters.declare("X_min")
-        self.parameters.declare("X_max")
-    
+    def __init__(
+        self,
+        Cl_model,
+        Cd_model,
+        X_min,
+        X_max,
+    ):
+        self.Cl_model = Cl_model
+        self.Cd_model = Cd_model
+        self.X_min = X_min
+        self.X_max = X_max
+        super().__init__()
+
     def evaluate(self, alpha, Re, Ma):
         self.declare_input("alpha", alpha)        
         self.declare_input("Re", Re)        
@@ -509,10 +516,10 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
         return Cl, Cd
 
     def compute(self, input_vals, output_vals):
-        Cl_model = self.parameters["Cl_model"]
-        Cd_model = self.parameters["Cd_model"]
-        X_min = self.parameters["X_min"]
-        X_max = self.parameters["X_max"]
+        Cl_model = self.Cl_model
+        Cd_model = self.Cd_model
+        X_min = self.X_min
+        X_max = self.X_max
 
         alpha = input_vals["alpha"]
         Re = input_vals["Re"]
@@ -534,10 +541,10 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
         output_vals["Cd"] = Cd.reshape(shape)
 
     def compute_derivatives(self, input_vals, outputs, derivatives):
-        Cl_model = self.parameters["Cl_model"]
-        Cd_model = self.parameters["Cd_model"]
-        X_min = self.parameters["X_min"]
-        X_max = self.parameters["X_max"]
+        Cl_model = self.Cl_model
+        Cd_model = self.Cd_model
+        X_min = self.X_min
+        X_max = self.X_max
 
         alpha = input_vals["alpha"]
         Re = input_vals["Re"]
