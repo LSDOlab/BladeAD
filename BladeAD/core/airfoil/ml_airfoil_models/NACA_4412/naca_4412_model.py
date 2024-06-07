@@ -5,6 +5,8 @@ from torch import nn
 from BladeAD import _REPO_ROOT_FOLDER
 
 
+torch.set_default_dtype(torch.float64)
+
 Cd_reg = nn.Sequential(
     nn.Linear(3, 104),
     nn.GELU(),
