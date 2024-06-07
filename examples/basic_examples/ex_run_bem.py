@@ -14,8 +14,8 @@ recorder = csdl.Recorder(inline=True)
 recorder.start()
 
 num_nodes = 1
-num_radial = 51
-num_azimuthal = 30
+num_radial = 35
+num_azimuthal = 50
 
 num_blades = 2
 
@@ -26,7 +26,7 @@ thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
 # radius = csdl.Variable(value=1.5)
 chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
 twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
-radius = csdl.Variable(value=0.3048 / 2)
+radius = csdl.Variable(value=0.3048001 / 2)
 mesh_vel_np = np.zeros((num_nodes, 3))
 mesh_vel_np[:, 0] = np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
 # mesh_vel_np[:, 2] = -10.
@@ -103,7 +103,7 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = BEMModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model,
+    airfoil_model=NACA4412MLAirfoilModel(),
     integration_scheme='trapezoidal',
 )
 
@@ -113,6 +113,8 @@ t2 = time()
 print("time", t2-t1)
 T = outputs.total_thrust.value
 Q = outputs.total_torque.value
+
+
 
 print("thrust", T)
 print("torque", Q)
