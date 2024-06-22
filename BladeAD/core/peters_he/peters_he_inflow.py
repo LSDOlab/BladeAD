@@ -5,6 +5,7 @@ from BladeAD.utils.integration_schemes import integrate_quantity
 from BladeAD.utils.var_groups import RotorAnalysisOutputs
 from BladeAD.utils.smooth_quantities_spanwise import smooth_quantities_spanwise
 from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
+from BladeAD.utils.switching_fun import sigmoid
 
 
 def double_factorial(n):
@@ -76,7 +77,10 @@ def compute_L(Q, r_harmonic, m_harmonic, x=2, type='cos'):
             if m > (m_harmonic-1):
                 break
             if r == 0:
-                multiplier = x**m
+                # if m == 0:
+                #     multiplier = 1
+                # else:
+                    multiplier = x**m
             else:
                 if type == 'sin':
                     multiplier = x**(((m - r)**2)**0.5) - (-1)**min(r, m) * x**(m + r)
@@ -195,6 +199,9 @@ def solve_for_steady_state_inflow(
     integration_scheme: str, 
     hub_radius,
     radius_vec_exp,
+    norm_radius_vec_exp,
+    disk_inclination_angle,
+    tip_loss,
     Q : int = 3,
     M : int = 3,
     initial_value: csdl.Variable = None
@@ -253,7 +260,6 @@ def solve_for_steady_state_inflow(
     [2] Peters, David A., and Cheng Jian He. "Finite state induced flow models. II-Three-dimensional rotor disk." Journal of Aircraft 32.2 (1995): 323-333.
     """
 
-    
     # Pre-processing
     num_nodes = shape[0]
     num_radial = shape[1]
@@ -316,9 +322,9 @@ def solve_for_steady_state_inflow(
             sin_psi = csdl.sin(r * psi[i, :, :])
             inflow = inflow + phi_vec * state_vec[nss+ns_cos] * sin_psi
 
-        ux = (inflow + mu_z[i]) * omega[i] * radius_vec[i, :, :]
+        ux = (inflow + mu_z[i]) * omega[i] * radius
         
-        phi = csdl.arctan(ux / Vt[i, :, :])
+        phi = csdl.arctan((ux) / Vt[i, :, :])
         
         # Compute sectional Cl, Cd
         alpha = twist_profile[i, :, :] - phi
@@ -339,18 +345,20 @@ def solve_for_steady_state_inflow(
         F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
         F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
 
-        F = F_tip * F_hub
+        F_initial = F_tip * F_hub 
+        if tip_loss:
+            F = 1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))
+        else:
+            F = 1
 
         # Compute thrust (and torque)
         # sectional (dT)
         Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
         dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
-        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
 
         # total thrust/torque and their coefficients
         thrust = integrate_quantity(dT, scheme=integration_scheme)
-        torque = integrate_quantity(dQ, scheme=integration_scheme)
         C_T = thrust / (rho * np.pi * radius**2 * (omega[i] * radius) ** 2)
 
         # Initialize loading coefficients
@@ -369,12 +377,19 @@ def solve_for_steady_state_inflow(
             # compute cosine harmonic and apply to loading
             if m == 0:
                 pass
+                # L_cos = L_cos
             else:
                 L_cos = L_cos * csdl.cos(m * psi[i, :, :]) 
 
-            tau_cos = tau_cos.set(
-                slices=csdl.slice[nsc], value=integrate_quantity(L_cos, integration_scheme)
-            )
+            if m == 0:
+                tau_cos = tau_cos.set(
+                    slices=csdl.slice[nsc], value=integrate_quantity(L_cos, integration_scheme) / (2 * np.pi * rho * omega[i]**2 * radius**4)
+                )
+            else:
+                tau_cos = tau_cos.set(
+                    slices=csdl.slice[nsc], value=integrate_quantity(L_cos, integration_scheme) / (np.pi * rho * omega[i]**2 * radius**4)
+                )
+                
 
         # sine terms
         for nss in range(ns_sin):
@@ -389,11 +404,11 @@ def solve_for_steady_state_inflow(
             L_sin = L_sin * csdl.sin(m * psi[i, :, :]) 
 
             tau_sin = tau_sin.set(
-                slices=csdl.slice[nss], value=integrate_quantity(L_sin, integration_scheme) 
+                slices=csdl.slice[nss], value=integrate_quantity(L_sin, integration_scheme)/ (np.pi * rho * omega[i]**2 * radius**4)
             )
 
-        tau_cos = tau_cos / (2 * np.pi * rho * omega[i]**2 * radius**4) #csdl.sum(tau_cos / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
-        tau_sin = tau_sin / (2 * np.pi * rho * omega[i]**2 * radius**4) #csdl.sum(tau_sin / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
+        tau_cos = tau_cos #/ (2 * np.pi * rho * omega[i]**2 * radius**4) #csdl.sum(tau_cos / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
+        tau_sin = tau_sin #/ (2 * np.pi * rho * omega[i]**2 * radius**4) #csdl.sum(tau_sin / (2 * np.pi * rho * omega**2 * radius**4)) / num_azimuthal
 
         # assemble loading vector
         tau = csdl.Variable(shape=(ns_cos + ns_sin, ), value=0)
@@ -401,18 +416,27 @@ def solve_for_steady_state_inflow(
         tau = tau.set(slices=csdl.slice[ns_cos:], value=tau_sin)
 
         # compute tangential inflow via Newton iteration
-        lam_0 = csdl.ImplicitVariable(shape=(1, ), value=0.1)
-        lam_0_res = lam_0 - C_T / (2 * (mu[i]**2 + lam_0**2)**0.5)
-        d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_0**2)**(-3/2) * lam_0
+        lam_i = csdl.ImplicitVariable(shape=(1, ), value=0.1)
+        lam_i_res = lam_i - mu[i] * csdl.tan(disk_inclination_angle[i]) - C_T / (2 * (mu[i]**2 + lam_i**2)**0.5)
+        d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_i**2)**(-3/2) * lam_i
 
-        lam_0_solver = csdl.nonlinear_solvers.GaussSeidel(elementwise_states=True)
-        lam_0_solver.add_state(lam_0, lam_0_res, state_update= lam_0 - lam_0_res / d_lam0res_d_lam0)
-        lam_0_solver.run()
-        lam_m = lam_0 * 3**0.5
-        lam = lam_m
+        lam_i_solver = csdl.nonlinear_solvers.GaussSeidel(elementwise_states=True, print_status=False)
+        lam_i_solver.add_state(lam_i, lam_i_res, state_update= lam_i - lam_i_res / d_lam0res_d_lam0)
+        lam_i_solver.run()
+        lam_m = lam_i * 3**0.5
+        lam = lam_m + mu_z[i]
+
+        # lam_i = csdl.ImplicitVariable(shape=(1, ), value=0.1)
+        # lam_i_res = lam_i - C_T / (2 * (mu[i]**2 + (mu_z[i] + lam_i)**2)**0.5)
+        # lam_i_solver = csdl.nonlinear_solvers.Newton(print_status=False)
+        # lam_i_solver.add_state(lam_i, lam_i_res)
+        # lam_i_solver.run()
+
+        # # lam = lam_i + mu_z[i]
+        # lam = lam_i * 3**0.5 + mu_z[i]
 
         # assemble L matrices 
-        chi = csdl.arctan(mu[i] / lam) # wake skew angle chi
+        chi = csdl.arctan((mu[i]  + 1e-7) / lam) # wake skew angle chi
         x = csdl.tan(((chi / 2)**2)**0.5)
 
         # Effective velocities
@@ -453,12 +477,17 @@ def solve_for_steady_state_inflow(
         if initial_value is None:
             # basic fixed point iteration for state update
             # state_update = 0.1 * (csdl.matvec(L_block, tau) - state_vec)
-            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=1000, elementwise_states=True)
+            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=1000, elementwise_states=False)
             solver.add_state(state_vec, residual, state_update=state_vec + 0.1 * residual)
             # solver.add_state(state_vec, residual, state_update=state_vec + state_update)
 
         solver.run()
-
+        
+        dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr  * F
+        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
+        thrust = integrate_quantity(dT, scheme=integration_scheme)
+        torque = integrate_quantity(dQ, scheme=integration_scheme)
+        
         # compute thrust/torque/power coefficient
         CT = thrust / rho / (rpm[i] / 60)**2 / (2 * radius)**4
         CQ = torque / rho / (rpm[i] / 60)**2 / (2 * radius)**5
@@ -499,6 +528,9 @@ def solve_for_steady_state_inflow(
         residual=residual_container,
     )
 
+    outputs.Cl = Cl
+    outputs.Cd = Cd
+    outputs.ux = ux
     outputs.state_vec = state_vec
 
 

@@ -132,3 +132,6 @@ class BSplineParameterizationExplicitOperation(csdl.CustomExplicitOperation):
         control_points = input_vals["control_points"]
 
         output_vals["radial_profile"] = jac @ control_points
+
+    def compute_derivatives(self, inputs, outputs, derivatives):
+        derivatives["radial_profile", "control_points"] = self.jac.toarray()

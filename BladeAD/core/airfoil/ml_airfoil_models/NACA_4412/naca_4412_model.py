@@ -3,10 +3,11 @@ import numpy as np
 import torch
 from torch import nn
 from BladeAD import _REPO_ROOT_FOLDER
+from torch.func import vmap, jacfwd, jacrev
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-torch.set_default_dtype(torch.float64)
+device = torch.device("cpu")
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 torch.set_default_dtype(torch.float64)
 
@@ -35,7 +36,7 @@ Cd_reg = nn.Sequential(
     nn.Linear(115, 1), 
 )
 
-Cd_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cd_neural_net', map_location=torch.device('cpu')))
+Cd_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cd_neural_net', map_location=torch.device("cpu")))
 
 
 Cl_reg = nn.Sequential(
@@ -60,7 +61,7 @@ Cl_reg = nn.Sequential(
             nn.Linear(81, 1), 
 )
 
-Cl_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cl_neural_net', map_location=torch.device('cpu')))
+Cl_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cl_neural_net', map_location=torch.device("cpu")))
 
 
 class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
@@ -78,6 +79,10 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
         self.declare_input("Re", Re)
         self.declare_input("Ma", Ma)
 
+        if isinstance(alpha, (float, int)):
+            alpha = csdl.Variable(shape=(1, ), value=alpha)
+
+
         shape = alpha.shape
 
         if len(shape) == 3:
@@ -85,6 +90,9 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
 
         elif len(shape) == 2:
             indices = np.arange(shape[0] * shape[1])
+
+        elif len(shape) == 1:
+            indices = np.arange(shape[0])
 
         else:
             raise NotImplementedError
@@ -120,10 +128,10 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
         scaled_input_tensor = (input_tensor - self.X_min) \
             / (self.X_max - self.X_min)
 
-        input_tensor_torch = torch.Tensor(scaled_input_tensor)
+        input_tensor_torch = torch.Tensor(scaled_input_tensor).to(device)
 
-        Cl = Cl_model(input_tensor_torch).detach().numpy()
-        Cd = Cd_model(input_tensor_torch).detach().numpy()
+        Cl = Cl_model(input_tensor_torch).cpu().detach().numpy()
+        Cd = Cd_model(input_tensor_torch).cpu().detach().numpy()
 
         output_vals["Cl"] = Cl.reshape(shape)
         output_vals["Cd"] = Cd.reshape(shape)
@@ -134,7 +142,7 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
         X_min = self.X_min
         X_max = self.X_max
 
-        alpha = input_vals["alpha"]
+        alpha = input_vals["alpha"] * 180 / np.pi
         Re = input_vals["Re"]
         Ma = input_vals["Ma"]
 
@@ -145,6 +153,9 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
 
         elif len(shape) == 2:
             indices = np.arange(shape[0] * shape[1])
+
+        elif len(shape) == 1:
+            indices = np.arange(shape[0])
 
         else:
             raise NotImplementedError
@@ -160,29 +171,24 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
         input_tensor_torch_scaled = torch.tensor(input_tensor_scaled, dtype=torch.float64).to(device)
 
         # Cl jacobian
-        d_Cl_d_scaled_tensor = torch.autograd.functional.jacobian(Cl_model, input_tensor_torch_scaled).cpu().detach().numpy()
-        d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.reshape((size, size, 3))
+        d_Cl_d_scaled_tensor = vmap(jacrev(Cl_model))(input_tensor_torch_scaled).detach().numpy()
+        d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.reshape((size, 3))
         
         # Cd jacobian
-        d_Cd_d_scaled_tensor = torch.autograd.functional.jacobian(Cd_model, input_tensor_torch_scaled).cpu().detach().numpy()
-        d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.reshape((size, size, 3))
+        d_Cd_d_scaled_tensor = vmap(jacrev(Cd_model))(input_tensor_torch_scaled).detach().numpy()
+        d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.reshape((size, 3))
 
         # Chain rule
         d_scaled_tensor_d_tensor = (1/(X_max - X_min)).reshape((1, 3))
-        d_tensor_d_inputs = np.ones((size, 3))
-
-        dCl_d_tensor = np.einsum('ijk, lk->ijk', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
-        dCl_d_inputs = np.einsum('ijk, jk->ik', dCl_d_tensor, d_tensor_d_inputs)
-
-        dCd_d_tensor = np.einsum('ijk, lk->ijk', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
-        dCd_d_inputs = np.einsum('ijk, jk->ik', dCd_d_tensor, d_tensor_d_inputs)
+        dCl_d_inputs = np.einsum('ik, lk->ik', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
+        dCd_d_inputs = np.einsum('ik, lk->ik', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
         
         # Assign derivatives
-        derivatives["Cl", "alpha"] = dCl_d_inputs[:, 0]
+        derivatives["Cl", "alpha"] = dCl_d_inputs[:, 0] * 180/np.pi
         derivatives["Cl", "Re"] = dCl_d_inputs[:, 1]
         derivatives["Cl", "Ma"] = dCl_d_inputs[:, 2]
 
-        derivatives["Cd", "alpha"] = dCd_d_inputs[:, 0]
+        derivatives["Cd", "alpha"] = dCd_d_inputs[:, 0] * 180/np.pi
         derivatives["Cd", "Re"] = dCd_d_inputs[:, 1]
         derivatives["Cd", "Ma"] = dCd_d_inputs[:, 2]
 
@@ -204,13 +210,23 @@ if __name__ == "__main__":
     recorder = csdl.Recorder(inline=True)
     recorder.start()
 
-    alfa = csdl.ImplicitVariable(shape=(1, ), value=0.)
-    Re = 6e6
-    M = 0.14
+    alfa = csdl.Variable(shape=(1, ), name="alfa", value=np.deg2rad(0.))
+    Re = csdl.Variable(shape=(1, ), name="Re", value=6e6)
+    M = csdl.Variable(shape=(1, ), name="M", value=0.14)
 
     naca_airfoil_model = NACA4412MLAirfoilModel()
     
-    Cl, _ = naca_airfoil_model.evaluate(alfa, Re, M)
+    Cl, Cd = naca_airfoil_model.evaluate(alfa, Re, M)
+    Cl.add_name("Cl")
+    Cd.add_name("Cd")
+
+    print(Cl.value)
+    print(Cd.value)
+
+    from csdl_alpha.src.operations.derivative.utils import verify_derivatives_inline
+    verify_derivatives_inline([Cl, Cd], [alfa, Re, M], 1e-6, raise_on_error=False)
+
+    exit()
 
     solver = csdl.nonlinear_solvers.BracketedSearch()
     solver.add_state(alfa, Cl, bracket=(-np.deg2rad(8), np.deg2rad(8)))

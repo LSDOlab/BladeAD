@@ -12,23 +12,37 @@ recorder = csdl.Recorder(inline=True)
 recorder.start()
 
 
-num_nodes = 4
-num_radial = 31
-num_azimuthal = 30
+num_nodes = 5
+num_radial = 35
+num_azimuthal = 50
 
 num_blades = 2
  
-thrust_vector=csdl.Variable(value=np.array([1 * np.sin(np.deg2rad(0)), 0, -1 * np.cos(np.deg2rad(0))]))
+# thrust_vector=csdl.Variable(value=np.array([1 * np.sin(np.deg2rad(90)), 0, -1 * np.cos(np.deg2rad(90))]))
+# thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
+# chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
+# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
+# radius = csdl.Variable(value=0.3048 / 2)
+# mesh_vel_np = np.zeros((num_nodes, 3))
+# mesh_vel_np[:, 0] = np.linspace(0, 10, num_nodes)
+# mesh_vel_np[:, 1] = 0
+# mesh_vel_np[:, 2] = 0
+# mesh_velocity = csdl.Variable(value=mesh_vel_np)
+# rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
+
+thrust_vector=csdl.Variable(value=np.array([1., 0, 0]))
 thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
+# chord_profile=csdl.Variable(value=np.linspace(0.25, 0.05, num_radial))
+# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(70), np.deg2rad(30), num_radial))
+# radius = csdl.Variable(value=1.5)
 chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
 twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
-radius = csdl.Variable(value=0.3048 / 2)
+radius = csdl.Variable(value=0.3048001 / 2)
 mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 0] = np.linspace(0, 10, num_nodes)
-mesh_vel_np[:, 1] = 0
-mesh_vel_np[:, 2] = 0
+mesh_vel_np[:, 0] = np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
+# mesh_vel_np[:, 2] = -10.
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
-rpm = csdl.Variable(value=4058 * np.ones((num_nodes,)))
+rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
 polar_parameters_1 = ZeroDAirfoilPolarParameters(
     alpha_stall_minus=-10.,
@@ -81,7 +95,7 @@ mh_117_2d_model = TwoDMLAirfoilModel(
 
 airfoil_model = CompositeAirfoilModel(
     sections=[0., 0.35, 0.7, 1.],
-    airfoil_models=[airfoil_model_1, airfoil_model_1, airfoil_model_2],
+    airfoil_models=[naca_4412_2d_model, clark_y_2d_model, mh_117_2d_model],
 )
 
 
@@ -107,20 +121,28 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PittPetersModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model,
+    airfoil_model=airfoil_model_1,#NACA4412MLAirfoilModel(),
     integration_scheme='trapezoidal',
 )
 
 import time 
 
-t1 =  time.time()
 outputs = bem_model.evaluate(inputs=bem_inputs)
-t2 = time.time()
+# t1 =  time.time()
+# print(csdl.derivative([outputs.total_thrust], [chord_profile]))
+# t2 = time.time()
+# print("time", t2-t1)
+# exit()
+# from csdl_alpha.src.operations.derivative.utils import verify_derivatives_inline
+# # verify_derivatives_inline([outputs.total_thrust], [radius], 1e-7, raise_on_error=True)
+# verify_derivatives_inline([outputs.total_thrust], [radius], 1e-7, raise_on_error=True)
+# recorder.stop()
+# exit()
 
-make_polarplot(outputs.sectional_thrust, plot_contours=False)
+# make_polarplot(outputs.sectional_thrust, plot_contours=False)
 
-print("time", t2-t1)
-print(outputs.total_thrust.value)
+print("thrust Pitt--Peters", outputs.total_thrust.value)
+print("torque Pitt--Peters", outputs.total_torque.value)
 # recorder.visualize_graph(trim_loops=True)
 recorder.stop()
 

@@ -10,35 +10,54 @@ from BladeAD.utils.plot import make_polarplot
 import numpy as np
 
 
-recorder = csdl.Recorder(inline=True)
+recorder = csdl.Recorder(inline=True, debug=True)
 recorder.start()
 
-num_nodes = 1
-num_radial = 31
-num_azimuthal = 50
+num_nodes = 5
+num_radial = 35
+num_azimuthal = 40
 
 num_blades = 2
 num_cp = 5
 
-thrust_vector = csdl.Variable(value=np.array([1 * np.sin(np.deg2rad(5)), 0, -1 * np.cos(np.deg2rad(5))]))
-thrust_origin = csdl.Variable(value=np.array([0. ,0., 0.]))
-chord_control_points = csdl.Variable(value=np.linspace(0.031 ,0.012, num_cp))
-twist_control_points = csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_cp))
+# # thrust_vector = csdl.Variable(value=np.array([1 * np.sin(np.deg2rad(5)), 0, -1 * np.cos(np.deg2rad(5))]))
+# thrust_vector = csdl.Variable(value=np.array([0, 0, -1 ]))
+# thrust_origin = csdl.Variable(value=np.array([0. ,0., 0.]))
+# chord_control_points = csdl.Variable(value=np.linspace(0.031 ,0.012, num_cp))
+# twist_control_points = csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_cp))
 
-profile_parameterization = BsplineParameterization(
-    num_radial=num_radial,
-    num_cp=num_cp,
-)
-chord_profile = profile_parameterization.evaluate_radial_profile(chord_control_points)
-twist_profile = profile_parameterization.evaluate_radial_profile(twist_control_points)
+# chord_control_points.set_as_design_variable(lower=0.01, upper=0.05, scaler=10)
+# twist_control_points.set_as_design_variable(lower=np.deg2rad(2), upper=np.deg2rad(40), scaler=10)
 
-radius = csdl.Variable(value=0.3048 / 2)
+# profile_parameterization = BsplineParameterization(
+#     num_radial=num_radial,
+#     num_cp=num_cp,
+# )
+# chord_profile = profile_parameterization.evaluate_radial_profile(chord_control_points)
+# twist_profile = profile_parameterization.evaluate_radial_profile(twist_control_points)
+
+# radius = csdl.Variable(value=0.3048 / 2)
+# mesh_vel_np = np.zeros((num_nodes, 3))
+# mesh_vel_np[:, 0] = 0 # np.linspace(0, 10, num_nodes)
+# mesh_vel_np[:, 1] = 0
+# mesh_vel_np[:, 2] = 0
+# mesh_velocity = csdl.Variable(value=mesh_vel_np)
+# rpm = csdl.Variable(value=4058 * np.ones((num_nodes,)))
+
+
+thrust_vector=csdl.Variable(value=np.array([1., 0, 0]))
+thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
+# chord_profile=csdl.Variable(value=np.linspace(0.25, 0.05, num_radial))
+# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(70), np.deg2rad(30), num_radial))
+# radius = csdl.Variable(value=1.5)
+chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
+twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
+radius = csdl.Variable(value=0.3048001 / 2)
 mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 0] = 10 # np.linspace(0, 10, num_nodes)
-mesh_vel_np[:, 1] = 0
-mesh_vel_np[:, 2] = 0
+mesh_vel_np[:, 0] = np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
+# mesh_vel_np[:, 2] = -10.
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
-rpm = csdl.Variable(value=4058 * np.ones((num_nodes,)))
+rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
 polar_parameters_1 = ZeroDAirfoilPolarParameters(
     alpha_stall_minus=-10.,
@@ -47,8 +66,8 @@ polar_parameters_1 = ZeroDAirfoilPolarParameters(
     Cl_stall_plus=1.5,
     Cd_stall_minus=0.02,
     Cd_stall_plus=0.06,
-    Cl_0=0.48,
-    Cd_0=0.01,
+    Cl_0=0.5,
+    Cd_0=0.008,
     Cl_alpha=5.1566,
 )
 
@@ -117,21 +136,64 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=NACA4412MLAirfoilModel(),
+    airfoil_model=airfoil_model_1, #airfoil_model_1,
     integration_scheme='trapezoidal',
 )
 
 import time 
 
-t1 =  time.time()
 outputs = bem_model.evaluate(inputs=bem_inputs)
-t2 = time.time()
 
-make_polarplot(outputs.sectional_thrust, plot_contours=False, azimuthal_offset=-90)
 
-print(outputs.total_thrust.value)
+T = outputs.total_thrust.value
+Q = outputs.total_torque.value
 
-print("time", t2-t1)
+
+
+print("thrust Peters--He", T)
+print("torque Peters--He", Q)
+
+exit()
+
+torque = outputs.total_torque
+torque.set_as_objective()
+thrust = outputs.total_thrust
+thrust.set_as_constraint(upper=5.5, lower=5.5, scaler=1/5)
+
+# make_polarplot(outputs.sectional_thrust, plot_contours=False, azimuthal_offset=-90)
+
+# print(thrust.value)
+q1 = torque.value
+
+# exit()
+
 # recorder.visualize_graph(trim_loops=True)
+from csdl_alpha.src.operations.derivative.utils import verify_derivatives_inline
+# verify_derivatives_inline([FOM], [chord_control_points], 1e-6, raise_on_error=True)
 recorder.stop()
+# exit()
+# Create a Simulator object from the Recorder object
+sim = csdl.experimental.PySimulator(recorder)
+
+from modopt import CSDLAlphaProblem
+from modopt import SLSQP
+
+prob = CSDLAlphaProblem(problem_name='rotor_blade',simulator=sim)
+
+
+# Setup your preferred optimizer (here, SLSQP) with the Problem object 
+# Pass in the options for your chosen optimizer
+optimizer = SLSQP(prob, ftol=1e-6, maxiter=30, outputs=['x'])
+
+# Solve your optimization problem
+optimizer.solve()
+
+# Print results of optimization
+optimizer.print_results()
+
+t = thrust.value
+q2 = torque.value
+print("thrust", t)
+print("optimized torque", q2)
+print("percent improvement", (q2 - q1)/q1 * 100)
 

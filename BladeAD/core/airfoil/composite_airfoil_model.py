@@ -23,7 +23,7 @@ class CompositeAirfoilModel:
     def __init__(
             self, 
             sections : list = [],
-            airfoil_models : list = [],
+            airfoil_models : list = None,
             smoothing=True,
             transition_window: int = 3,
     ) -> None:
@@ -31,7 +31,7 @@ class CompositeAirfoilModel:
         self.airfoil_models = airfoil_models
         self.smoothing = smoothing
         self.transition_window = transition_window
-        csdl.check_parameter(airfoil_models, "airfoil_models", types=list)
+        csdl.check_parameter(airfoil_models, "airfoil_models", types=list, allow_none=True)
         csdl.check_parameter(sections, "sections", types=list)
         csdl.check_parameter(smoothing, "smoothing", types=bool)
         csdl.check_parameter(transition_window, "transition_window", types=int)
@@ -39,8 +39,9 @@ class CompositeAirfoilModel:
         if len(sections) < 3:
             raise ValueError("Need at least two sections (i.e., three points) to define multiple airfoils.")
         
-        if (len(sections) - 1) != len(airfoil_models):
-            raise Exception("length of 'airfoil_models' and (length of 'sections') - 1 must be the same")
+        if airfoil_models is not None:
+            if (len(sections) - 1) != len(airfoil_models):
+                raise Exception("length of 'airfoil_models' and (length of 'sections') - 1 must be the same")
         
         if not are_all_elements_of_type(sections, (float, int)):
             raise ValueError("elements of the sections list must either be of type 'float' or 'int'")
@@ -63,36 +64,37 @@ class CompositeAirfoilModel:
         Cd = csdl.Variable(shape=shape, value=0)
 
         stop_indices = []
-        for i, airfoil_model in enumerate(self.airfoil_models):
-            start = self.sections[i]
-            stop = self.sections[i+1]
+        if self.airfoil_models is not None:
+            for i, airfoil_model in enumerate(self.airfoil_models):
+                start = self.sections[i]
+                stop = self.sections[i+1]
 
-            start_index = int(np.floor(start * num_radial))
-            stop_index = int(np.floor(stop * num_radial))
+                start_index = int(np.floor(start * num_radial))
+                stop_index = int(np.floor(stop * num_radial))
 
-            if stop_index != 0 and stop_index != num_radial:
-                stop_indices.append(stop_index)
+                if stop_index != 0 and stop_index != num_radial:
+                    stop_indices.append(stop_index)
 
-            if len(shape) == 3:
-                Cl_section, Cd_section = airfoil_model.evaluate(
-                    alpha[:, start_index:stop_index, :],
-                    Re[:, start_index:stop_index, :],
-                    Ma[:, start_index:stop_index, :],
-                )
-                Cl = Cl.set(csdl.slice[:, start_index:stop_index, :], Cl_section)
-                Cd = Cd.set(csdl.slice[:, start_index:stop_index, :], Cd_section)
-            
-            elif len(shape) == 2:
-                Cl_section, Cd_section = airfoil_model.evaluate(
-                    alpha[start_index:stop_index, :],
-                    Re[start_index:stop_index, :],
-                    Ma[start_index:stop_index, :],
-                )
-                Cl = Cl.set(csdl.slice[start_index:stop_index, :], Cl_section)
-                Cd = Cd.set(csdl.slice[start_index:stop_index, :], Cd_section)
+                if len(shape) == 3:
+                    Cl_section, Cd_section = airfoil_model.evaluate(
+                        alpha[:, start_index:stop_index, :],
+                        Re[:, start_index:stop_index, :],
+                        Ma[:, start_index:stop_index, :],
+                    )
+                    Cl = Cl.set(csdl.slice[:, start_index:stop_index, :], Cl_section)
+                    Cd = Cd.set(csdl.slice[:, start_index:stop_index, :], Cd_section)
+                
+                elif len(shape) == 2:
+                    Cl_section, Cd_section = airfoil_model.evaluate(
+                        alpha[start_index:stop_index, :],
+                        Re[start_index:stop_index, :],
+                        Ma[start_index:stop_index, :],
+                    )
+                    Cl = Cl.set(csdl.slice[start_index:stop_index, :], Cl_section)
+                    Cd = Cd.set(csdl.slice[start_index:stop_index, :], Cd_section)
 
-            else:
-                raise NotImplementedError(f"unkown shape {shape}")
+                else:
+                    raise NotImplementedError(f"unkown shape {shape}")
         
 
         if self.smoothing:

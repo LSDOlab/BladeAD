@@ -10,6 +10,7 @@ class PetersHeModel:
         self, 
         num_nodes: int,
         airfoil_model,
+        tip_loss: bool=True,
         integration_scheme: str = "trapezoidal",
         Q: int = 3,
         M: int = 3,
@@ -18,6 +19,7 @@ class PetersHeModel:
         csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))
         csdl.check_parameter(Q, "Q", types=int)
         csdl.check_parameter(M, "M", types=int)
+        csdl.check_parameter(tip_loss, "tip_loss", types=bool)
 
         if num_nodes < 1:
             raise ValueError("num_nodes must be an integer greater or equal to 1")
@@ -30,6 +32,7 @@ class PetersHeModel:
         self.integration_scheme = integration_scheme
         self.Q = Q
         self.M = M
+        self.tip_loss = tip_loss
 
     
     def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
@@ -91,8 +94,11 @@ class PetersHeModel:
             num_blades=num_blades,
             dr=pre_process_outputs.element_width,
             radius_vec_exp=pre_process_outputs.radius_vector_exp,
+            norm_radius_vec_exp=pre_process_outputs.norm_radius_exp,
+            disk_inclination_angle=local_frame_velocities.disk_inclination_angle,
             hub_radius=pre_process_outputs.hub_radius,
             integration_scheme=self.integration_scheme,
+            tip_loss=self.tip_loss,
             M=self.M,
             Q=self.Q,
         )

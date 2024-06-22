@@ -10,14 +10,18 @@ class PittPetersModel:
         self,
         num_nodes: int,
         airfoil_model,
+        tip_loss: bool=True,
         integration_scheme: str = "trapezoidal"
     ) -> None:
         csdl.check_parameter(num_nodes, "num_nodes", types=int)
         csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))
+        csdl.check_parameter(tip_loss, "tip_loss", types=bool)
         
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
+        self.tip_loss = tip_loss
+
 
     def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
         num_nodes = self.num_nodes
@@ -71,15 +75,18 @@ class PittPetersModel:
             tangential_velocity=local_frame_velocities.tangential_velocity,
             frame_velocity=local_frame_velocities.local_frame_velocity, 
             radius_vec=pre_process_outputs.radius_vector_exp,
+            norm_radius_vec=pre_process_outputs.norm_radius_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
             airfoil_model=self.airfoil_model,
+            disk_inclination_angle=local_frame_velocities.disk_inclination_angle,
             atmos_states=inputs.atmos_states,
             num_blades=num_blades,
             dr=pre_process_outputs.element_width,
             radius_vec_exp=pre_process_outputs.radius_vector_exp,
             hub_radius=pre_process_outputs.hub_radius,
             integration_scheme=self.integration_scheme,
+            tip_loss=self.tip_loss,
         )
 
         return dynamic_inflow_outputs

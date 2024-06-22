@@ -313,5 +313,5 @@ class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
 
         dCl_daoa, dCd_daoa = airfoil_function_derivative(alpha)
         derivatives["Cl", "alpha"] = dCl_daoa
-        derivatives["Cl", "alpha"] = dCd_daoa
+        derivatives["Cd", "alpha"] = dCd_daoa
 

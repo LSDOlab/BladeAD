@@ -13,14 +13,17 @@ class BEMModel:
         self,
         num_nodes: int,
         airfoil_model,
-        integration_scheme: str = 'trapezoidal'
+        integration_scheme: str = 'trapezoidal',
+        tip_loss:bool = True,
     ) -> None:
         csdl.check_parameter(num_nodes, 'num_nodes', types=int)
         csdl.check_parameter(integration_scheme, 'integration_scheme', values=('Simpson', 'Riemann', 'trapezoidal'))
+        csdl.check_parameter(tip_loss, "tip_loss", types=bool)
         
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
+        self.tip_loss = tip_loss
 
     def evaluate(self, inputs: RotorAnalysisInputs, ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])) -> RotorAnalysisOutputs:
         """Evaluate the BEM solver.
@@ -90,6 +93,7 @@ class BEMModel:
             radius=radius,
             hub_radius=pre_process_outputs.hub_radius,
             sigma=pre_process_outputs.sigma,
+            tip_loss=self.tip_loss,
         )
 
         # Post-processing
@@ -124,18 +128,90 @@ class BEMModel:
         forces = csdl.Variable(shape=(num_nodes, 3), value=0.)
         moments = csdl.Variable(shape=(num_nodes, 3), value=0.)
 
-        for i in csdl.frange(num_nodes):
-            forces = forces.set(
-                csdl.slice[i, :],
-                thrust[i] * thrust_vec_exp[i, :],
-            )
+        # transform forces into body-fixed frame
+        if inputs.ac_states is not None:
+            phi = inputs.ac_states.phi        
+            theta = inputs.ac_states.theta
+            psi = inputs.ac_states.psi
+            
+            # Rotate forces into body-fixed reference frame
+            for i in csdl.frange(num_nodes):
+                L2B_mat = csdl.Variable(shape=(3, 3), value=0.)
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[0, 0],
+                    value=csdl.cos(theta[i]) * csdl.cos(psi[i]),
+                )
 
-            moments = moments.set(
-                csdl.slice[i, :],
-                csdl.cross(
-                    thrust_origin_exp[i, :] - ref_point,
-                    forces[i, :])
-            )
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[0, 1],
+                    value=csdl.cos(theta[i]) * csdl.sin(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[0, 2],
+                    value= -csdl.sin(theta[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[1, 0],
+                    value=csdl.sin(phi[i]) * csdl.sin(theta[i]) * csdl.cos(psi[i]) - csdl.cos(phi[i]) * csdl.sin(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[1, 1],
+                    value=csdl.sin(phi[i]) * csdl.sin(theta[i]) * csdl.sin(psi[i]) + csdl.cos(phi[i]) * csdl.cos(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[1, 2],
+                    value=csdl.sin(phi[i]) * csdl.cos(theta[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[2, 0],
+                    value=csdl.cos(phi[i]) * csdl.sin(theta[i]) * csdl.cos(psi[i]) + csdl.sin(phi[i]) * csdl.sin(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[2, 1],
+                    value=csdl.cos(phi[i]) * csdl.sin(theta[i]) * csdl.sin(psi[i]) - csdl.sin(phi[i]) * csdl.cos(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[2, 2],
+                    value=csdl.cos(phi[i]) * csdl.cos(theta[i]),
+                )
+                
+
+                forces = forces.set(
+                    csdl.slice[i, :],
+                    csdl.matvec(
+                        L2B_mat,
+                        thrust[i] * thrust_vec_exp[i, :],
+                    )
+                )
+
+                moments = moments.set(
+                    csdl.slice[i, :],
+                    csdl.cross(
+                        csdl.matvec(
+                            L2B_mat,
+                            thrust_origin_exp[i, :] - ref_point,
+                        ),
+                        forces[i, :])
+                )
+        else:
+            for i in csdl.frange(num_nodes):
+                forces = forces.set(
+                        csdl.slice[i, :], thrust[i] * thrust_vec_exp[i, :],
+                        )
+
+                moments = moments.set(
+                    csdl.slice[i, :],
+                    csdl.cross(
+                        thrust_origin_exp[i, :] - ref_point,
+                        forces[i, :])
+                    )
 
         bem_outputs.forces = forces
         bem_outputs.moments = moments

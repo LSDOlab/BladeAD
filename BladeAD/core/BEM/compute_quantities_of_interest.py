@@ -91,6 +91,8 @@ def compute_quantities_of_interest(
         power_coefficient=C_P
     )
 
+    bem_outputs.advance_ratio = J
+
     return bem_outputs
 
 

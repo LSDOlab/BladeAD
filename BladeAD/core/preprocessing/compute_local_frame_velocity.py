@@ -9,6 +9,7 @@ class LocalFrameVelocities:
     tangential_velocity: csdl.Variable
     mu: csdl.Variable
     mu_z: csdl.Variable
+    disk_inclination_angle: csdl.Variable
 
 
 def compute_local_frame_velocities(
@@ -34,6 +35,8 @@ def compute_local_frame_velocities(
 
     mu_z = csdl.Variable(shape=(num_nodes, ), value=np.zeros((num_nodes, )))
     mu = csdl.Variable(shape=(num_nodes, ), value=np.zeros((num_nodes, )))
+    disk_incline_angle = csdl.Variable(shape=(num_nodes, ), value=np.zeros((num_nodes, )))
+
 
     for i in csdl.frange(num_nodes):
         normal_vec = thrust_vector[i, :]
@@ -50,6 +53,8 @@ def compute_local_frame_velocities(
         # compute second in-plane unit vector
         in_plane_ex = csdl.cross(normal_vec, in_plane_ey)
         
+        # Free stream 
+        V_inf = csdl.norm(origin_velocity[i, :])
 
         # project origin velocity along in-plane vectors
         in_plane_ux = csdl.vdot(origin_velocity[i, :], in_plane_ex)
@@ -92,9 +97,10 @@ def compute_local_frame_velocities(
             ((in_plane_ux**2 + in_plane_uy**2)**0.5) / angular_speed[i, 0, 0] / radius
         )
 
-
-    # print(local_frame_velocity[:, :, :, 2].value)
-    # exit()
+        disk_incline_angle =  disk_incline_angle.set(
+            csdl.slice[i],
+            csdl.arccos(mu[i] * angular_speed[i, 0, 0] * radius  / (V_inf + 1e-5)),
+        )
 
     V_tangential = local_frame_velocity[:, :, :, 1] * csdl.sin(azimuth_angle) - \
                    local_frame_velocity[:, :, :, 2] * csdl.cos(azimuth_angle) + \
@@ -106,6 +112,7 @@ def compute_local_frame_velocities(
         tangential_velocity=V_tangential,
         mu=mu, 
         mu_z=mu_z,
+        disk_inclination_angle=disk_incline_angle,
     )
 
     return local_frame_velocity

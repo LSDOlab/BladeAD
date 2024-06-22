@@ -10,10 +10,12 @@ from torch import nn
 import optuna
 import pickle
 import csdl_alpha as csdl
+from torch.func import vmap, jacrev
 
 
 # Run on GPU if available
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 
 torch.set_default_dtype(torch.float64)
 
@@ -25,7 +27,7 @@ def define_model(trial):
     for i in range(n_layers):
         out_features = trial.suggest_int("n_units_l{}".format(i), 5, 100)
         layers.append(nn.Linear(in_features, out_features))
-        activation_fun = trial.suggest_categorical(f"activation_fun_{i}", ["ReLU", "GELU", "SELU", "Tanh", "Softplus"])
+        activation_fun = trial.suggest_categorical(f"activation_fun_{i}", ["ReLU", "LeakyReLU", "GELU", "SELU", "Tanh", "Softplus"])
         layers.append(getattr(nn, activation_fun)())
         in_features = out_features
     layers.append(nn.Linear(in_features, 1))
@@ -34,7 +36,8 @@ def define_model(trial):
 
 def train_two_d_airfoil_model(
         airfoil_name: str, 
-        force_retrain: bool=False, 
+        force_retrain_Cl: bool=False, 
+        force_retrain_Cd: bool=False, 
         tune_hyper_parameters: bool=False, 
         num_trials: int=500, 
         plot_model: bool=False
@@ -192,14 +195,40 @@ def train_two_d_airfoil_model(
     yt_Cd = Cd_outputs
 
     if os.path.isfile(f"{data_directory_path}/Cl_model"):
-        if force_retrain:
+        if force_retrain_Cl is True and force_retrain_Cd is False:
             print(":::::::::::::::::::::::::::TRAINING Cl MODEL:::::::::::::::::::::::::::")
             Cl_model = get_ml_model(xt, yt_Cl, data_directory_path, "Cl", tune_hyper_parameters, num_trials)
             Cl_model.eval()
 
+            if os.path.isfile(f"{data_directory_path}/tuned_Cd_model_params.pickle"):
+                with open(f"{data_directory_path}/tuned_Cd_model_params.pickle", "rb") as pickle_file:
+                    params_dict_cd = pickle.load(pickle_file)
+
+            else:
+                with open(f"{data_directory_path}/../general_Cd_model_params.pickle", "rb") as pickle_file:
+                    params_dict_cd = pickle.load(pickle_file)
+            
+            Cd_model = build_model_from_parameters(params_dict_cd, None, None, None, None, None, None, train=False)
+            Cd_model.eval()
+            Cd_model.load_state_dict(torch.load(f"{data_directory_path}/Cd_model", map_location=torch.device("cpu")))
+        
+        elif force_retrain_Cd is True and force_retrain_Cl is False:
             print(":::::::::::::::::::::::::::TRAINING Cd MODEL:::::::::::::::::::::::::::")
             Cd_model = get_ml_model(xt, yt_Cd, data_directory_path, "Cd", tune_hyper_parameters, num_trials)
             Cd_model.eval()
+
+            if os.path.isfile(f"{data_directory_path}/tuned_Cl_model_params.pickle"):
+                with open(f"{data_directory_path}/tuned_Cl_model_params.pickle", "rb") as pickle_file:
+                    params_dict_Cl = pickle.load(pickle_file)
+
+            else:
+                with open(f"{data_directory_path}/../general_Cl_model_params.pickle", "rb") as pickle_file:
+                    params_dict_Cl = pickle.load(pickle_file)
+            
+            Cl_model = build_model_from_parameters(params_dict_Cl, None, None, None, None, None, None, train=False)
+            Cl_model.eval()
+            Cl_model.load_state_dict(torch.load(f"{data_directory_path}/Cl_model", map_location=torch.device("cpu")))
+
         else:
             if os.path.isfile(f"{data_directory_path}/tuned_Cl_model_params.pickle"):
                 with open(f"{data_directory_path}/tuned_Cl_model_params.pickle", "rb") as pickle_file:
@@ -328,6 +357,11 @@ def get_ml_model(input_data, output_data, data_directory_path, type_="Cl", tune_
 
                     optimizer.zero_grad()
                     output = model(data)
+
+                    aoa = (data[:, 1] * (np.pi/2 + np.pi/2) - np.pi/2) * 180 / np.pi
+
+                    mask = (aoa >= -8) & (aoa <=10)
+                    mask = mask.float()
                 
                     if type_ == "Cd":
                         penalty = torch.mean(torch.relu(-output))
@@ -335,7 +369,9 @@ def get_ml_model(input_data, output_data, data_directory_path, type_="Cl", tune_
                         penalty = 0
 
                     loss = F.mse_loss(output, target) + 10 * penalty
-                    loss.backward()
+                    weighted_loss = ((1 + (10 -1) * mask) * loss).mean() 
+
+                    weighted_loss.backward()
                     optimizer.step()
 
                 # Validation of the model.
@@ -446,6 +482,12 @@ def build_model_from_parameters(params_dict, X_train, X_test, y_train, y_test, d
                 # zero gradients
                 optimizer.zero_grad()
                 
+                aoa = (input_batch[:, 0, 1] * (np.pi/2 + np.pi/2) - np.pi/2) * 180 / np.pi
+                Re = (input_batch[:, 0, 0] * (10e6 -5e3) + 5e3)
+
+                mask = (aoa >= -8) & (aoa <=10)
+                mask = mask.float()
+
                 # forward pass
                 output_pred = model(input_batch)
 
@@ -455,11 +497,14 @@ def build_model_from_parameters(params_dict, X_train, X_test, y_train, y_test, d
                     penalty = 0
 
                 # compute loss
-                loss = criterion(output_pred, output_batch) + penalty
+                loss = criterion(output_pred, output_batch) + 10 * penalty
                 # loss = criterion(output_pred, output_batch) 
                 
+                # Penalize the region where -8 < alpha < 10 
+                weighted_loss = ((1 + (10 -1) * mask) * loss).mean() 
+
                 # backward pass and optimization
-                loss.backward()
+                weighted_loss.backward()
                 optimizer.step()
 
             test_loss = criterion(model(X_test), y_test)
@@ -498,6 +543,9 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
 
         elif len(shape) == 2:
             indices = np.arange(shape[0] * shape[1])
+
+        elif len(shape) == 1:
+            indices = np.arange(shape[0])
 
         else:
             raise NotImplementedError
@@ -558,6 +606,9 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
         elif len(shape) == 2:
             indices = np.arange(shape[0] * shape[1])
 
+        elif len(shape) == 1:
+            indices = np.arange(shape[0])
+
         else:
             raise NotImplementedError
         
@@ -571,22 +622,18 @@ class TwoDMLAirfoilModelCustomOp(csdl.CustomExplicitOperation):
         input_tensor_torch_scaled = torch.tensor(input_tensor_scaled, dtype=torch.float64).to(device)
 
         # Cl jacobian
-        d_Cl_d_scaled_tensor = torch.autograd.functional.jacobian(Cl_model, input_tensor_torch_scaled).cpu().detach().numpy()
-        d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.reshape((size, size, 2))
-        
+        d_Cl_d_scaled_tensor = vmap(jacrev(Cl_model))(input_tensor_torch_scaled).detach().numpy()
+        d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.reshape((size, 2))
+
         # Cd jacobian
-        d_Cd_d_scaled_tensor = torch.autograd.functional.jacobian(Cd_model, input_tensor_torch_scaled).cpu().detach().numpy()
-        d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.reshape((size, size, 2))
+        d_Cd_d_scaled_tensor = vmap(jacrev(Cd_model))(input_tensor_torch_scaled).detach().numpy()
+        d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.reshape((size, 2))
 
         # Chain rule
         d_scaled_tensor_d_tensor = 1/(X_max - X_min)
-        d_tensor_d_inputs = np.ones((size, 2))
 
-        dCl_d_tensor = np.einsum('ijk, lk->ijk', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
-        dCl_d_inputs = np.einsum('ijk, jk->ik', dCl_d_tensor, d_tensor_d_inputs)
-
-        dCd_d_tensor = np.einsum('ijk, lk->ijk', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
-        dCd_d_inputs = np.einsum('ijk, jk->ik', dCd_d_tensor, d_tensor_d_inputs)
+        dCl_d_inputs = np.einsum('ik, lk->ik', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
+        dCd_d_inputs = np.einsum('ik, lk->ik', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
         
         # Assign derivatives
         derivatives["Cl", "Re"] = dCl_d_inputs[:, 0]
@@ -605,13 +652,15 @@ class TwoDMLAirfoilModel:
     def __init__(
         self,
         airfoil_name: str, 
-        force_retrain: bool = False, 
+        force_retrain_Cl: bool = False, 
+        force_retrain_Cd: bool = False, 
         plot_model: bool = False,
         tune_hyper_parameters: bool = False,
         num_trials: int = 500, 
     ):
         csdl.check_parameter(airfoil_name, "airfoil_name", types=str)
-        csdl.check_parameter(force_retrain, "force_retrain", types=bool)
+        csdl.check_parameter(force_retrain_Cl, "force_retrain_Cl", types=bool)
+        csdl.check_parameter(force_retrain_Cd, "force_retrain_Cd", types=bool)
         csdl.check_parameter(tune_hyper_parameters, "tune_hyper_parameters", types=bool)
         csdl.check_parameter(num_trials, "num_trials", types=int)
         csdl.check_parameter(plot_model, "plot_model", types=bool)
@@ -631,7 +680,8 @@ class TwoDMLAirfoilModel:
         self._Cl_model, self._Cd_model, self._X_max, self._X_min = \
             train_two_d_airfoil_model(
                 airfoil_name=airfoil_name,
-                force_retrain=force_retrain,
+                force_retrain_Cd=force_retrain_Cd,
+                force_retrain_Cl=force_retrain_Cl,
                 tune_hyper_parameters=tune_hyper_parameters,
                 num_trials=num_trials,
                 plot_model=plot_model,
@@ -657,12 +707,18 @@ if __name__ == "__main__":
     alfa = csdl.ImplicitVariable(shape=(1, ), value=0.)
 
     airfoil_model = TwoDMLAirfoilModel(
-        "naca_4412"
+        "clark_y",
+        plot_model=True,
+        force_retrain_Cd=True,
+        tune_hyper_parameters=True,
     )
 
     Re = 1e6
     M = 0.
     Cl, _ = airfoil_model.evaluate(alfa, Re, M)
+
+    print(Cl.value)
+    exit()
 
     solver = csdl.nonlinear_solvers.BracketedSearch(tolerance=1e-6)
     solver.add_state(alfa, Cl, bracket=(np.deg2rad(-6), np.deg2rad(6)))

@@ -27,6 +27,7 @@ def compute_inflow_angle(
     radius,
     hub_radius,
     sigma,
+    tip_loss,
     initial_value=None,
 ):
     mu = atmos_states.dynamic_viscosity
@@ -44,13 +45,6 @@ def compute_inflow_angle(
 
     Cl, Cd = airfoil_model.evaluate(alpha, Re, Ma)
 
-    # if isinstance(airfoil_model, CompositeAirfoilModel):
-    #     if airfoil_model.smoothing:
-    #         window = airfoil_model.transition_window
-    #         indices = airfoil_model.stop_indices
-    #         # Cl = smooth_quantities_spanwise(Cl, indices, window)
-    #         Cd = smooth_quantities_spanwise(Cd, indices, window)
-
     # Prandtl tip losses 
     f_tip = num_blades / 2 * (radius - radius_vec_exp) / radius / csdl.sin(phi)
     f_hub = num_blades / 2 * (radius_vec_exp - hub_radius) / hub_radius / csdl.sin(phi)
@@ -58,7 +52,10 @@ def compute_inflow_angle(
     F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
     F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
 
-    F = F_tip * F_hub
+    if tip_loss:
+        F = F_tip * F_hub
+    else:
+        F = 1
 
     # Setting up residual 
     Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)

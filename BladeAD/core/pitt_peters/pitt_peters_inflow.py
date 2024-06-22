@@ -4,6 +4,7 @@ from BladeAD.utils.var_groups import RotorAnalysisOutputs
 from BladeAD.utils.integration_schemes import integrate_quantity
 from BladeAD.utils.smooth_quantities_spanwise import smooth_quantities_spanwise
 from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
+from BladeAD.utils.switching_fun import sigmoid
 
 
 def solve_for_steady_state_inflow(
@@ -15,16 +16,19 @@ def solve_for_steady_state_inflow(
     mu,
     tangential_velocity,
     frame_velocity,
+    norm_radius_vec,
     radius_vec,
     chord_profile,
     twist_profile,
     airfoil_model,
+    disk_inclination_angle,
     atmos_states,
     num_blades,
     dr,
     hub_radius, 
     radius_vec_exp,
     integration_scheme, 
+    tip_loss,
 ) -> RotorAnalysisOutputs:
     # Pre-processing
     num_nodes = shape[0]
@@ -70,10 +74,14 @@ def solve_for_steady_state_inflow(
             lam_0_exp
             + lam_c_exp * radius_vec[i, :, :] / radius * csdl.cos(psi[i, :, :])
             + lam_s_exp * radius_vec[i, :, :] / radius * csdl.sin(psi[i, :, :])
+            # + lam_c_exp * norm_radius_vec[i, :, :] * csdl.cos(psi[i, :, :])
+            # + lam_s_exp * norm_radius_vec[i, :, :] * csdl.sin(psi[i, :, :])
         )
 
+
         # compute axial-induced velocity
-        ux = (lam_exp_i + mu_z[i]) * omega[i] * radius_vec[i, :, :]
+        ux = (lam_exp_i + mu_z[i]) * omega[i] * radius #radius_vec[i, :, :]
+        # ux = (lam_exp_i) * omega[i] * radius # radius_vec[i, :, :] #
 
         # compute inflow angle (ignoring tangential induction)
         phi = csdl.arctan(ux / Vt[i, :, :])
@@ -89,7 +97,11 @@ def solve_for_steady_state_inflow(
         F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
         F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
 
-        F = F_tip * F_hub
+        F_initial = F_tip * F_hub
+        if tip_loss:
+            F = 1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))
+        else:
+            F = 1
 
         # Smooth the transition if airfoil model consists of multiple airfoils
         if isinstance(airfoil_model, CompositeAirfoilModel):
@@ -103,12 +115,10 @@ def solve_for_steady_state_inflow(
         Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
         dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
-        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
         dMx = radius_vec[i, :, :] * csdl.sin(psi[i, :, :]) * dT
         dMy = radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
 
         thrust = integrate_quantity(dT, integration_scheme)
-        torque = integrate_quantity(dQ, integration_scheme)
         Mx = integrate_quantity(dMx, integration_scheme)
         My = integrate_quantity(dMy, integration_scheme)
 
@@ -116,20 +126,19 @@ def solve_for_steady_state_inflow(
         C_Mx = Mx / (rho * np.pi * radius**2 * (omega[i] * radius) ** 2 * radius)
         C_My = My / (rho * np.pi * radius**2 * (omega[i] * radius) ** 2 * radius)
 
-        lam_0 = csdl.ImplicitVariable(shape=(1, ), value=0.1)
-        lam_0_res = lam_0 - C_T / (2 * (mu[i]**2 + lam_0**2)**0.5)
-        d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_0**2)**(-3/2) * lam_0
+        # Solver for lam_i (different from lam_exp_i)
+        lam_i = csdl.ImplicitVariable(shape=(1, ), value=0.1)
+        lam_i_res = lam_i - C_T / (2 * (mu[i]**2 + (mu_z[i] + lam_i)**2)**0.5)
+        lam_i_solver = csdl.nonlinear_solvers.Newton(print_status=False)
+        lam_i_solver.add_state(lam_i, lam_i_res)
+        lam_i_solver.run()
 
-        lam_0_solver = csdl.nonlinear_solvers.GaussSeidel(elementwise_states=True)
-        lam_0_solver.add_state(lam_0, lam_0_res, state_update= lam_0 - lam_0_res / d_lam0res_d_lam0)
-        lam_0_solver.run()
+        lam = mu_z[i] + lam_i
 
-        # TODO: double check the 3**5 with Wayne Johnson's text 
-        lam_m = lam_0 * 1 # 3**0.5
-        lam = lam_m
-
-        chi = csdl.arctan(mu[i] / lam)
-        V_eff = (mu[i] ** 2 + lam * (lam + lam_m)) / (mu[i] ** 2 + lam**2) ** 0.5
+        # Compute wake skew and effective velocities
+        chi = csdl.arctan((mu[i] +1e-5) / lam)
+        V_eff = (mu[i] ** 2 + lam * (lam + lam_i)) / (mu[i] ** 2 + lam**2) ** 0.5
+        V_eff_2 = (mu[i]**2 + lam**2)**0.5
 
         L_mat = csdl.Variable(shape=(3, 3), value=np.zeros((3, 3)))
         L_mat = L_mat.set(csdl.slice[0, 0], 0.5)
@@ -140,23 +149,30 @@ def solve_for_steady_state_inflow(
         ))
         L_mat = L_mat.set(csdl.slice[2, 2], 4 / (1 + csdl.cos(chi)))
 
-        L_mat_new = L_mat / V_eff
+        L_mat_new = L_mat 
+        L_mat_new = L_mat_new.set(csdl.slice[:, 0], L_mat_new[:, 0]/ V_eff)
+        L_mat_new = L_mat_new.set(csdl.slice[:, 1], L_mat_new[:, 1]/ V_eff_2)
+        L_mat_new = L_mat_new.set(csdl.slice[:, 2], L_mat_new[:, 2]/ V_eff_2)
 
         rhs = csdl.Variable(shape=(3, ), value=np.zeros((3, )))
         rhs = rhs.set(csdl.slice[0], C_T)
-        rhs = rhs.set(csdl.slice[1], C_My)
+        rhs = rhs.set(csdl.slice[1], -C_My)
         rhs = rhs.set(csdl.slice[2], C_Mx)
 
         # define residual based on steady state assumption
         residual = state_vec - csdl.matvec(L_mat_new, rhs)
-
     
         # basic fixed point iteration for state update
         state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
-        solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100, elementwise_states=True)
+        solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100, elementwise_states=False)
         solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
         solver.run()
+
+        dT = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
+        dQ = 0.5 * B * rho * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
+        thrust = integrate_quantity(dT, integration_scheme)
+        torque = integrate_quantity(dQ, integration_scheme)
 
         # compute thrust/torque/power coefficient
         CT = thrust / rho / (rpm[i] / 60)**2 / (2 * radius)**4
@@ -183,20 +199,24 @@ def solve_for_steady_state_inflow(
         states_container = states_container.set(csdl.slice[i, :], state_vec)
         residual_container = residual_container.set(csdl.slice[i, :], residual)
 
-        outputs = RotorAnalysisOutputs(
-            axial_induced_velocity=ux_container,
-            tangential_induced_velocity=None,
-            sectional_thrust=dT_container,
-            sectional_torque=dQ_container,
-            total_thrust=thrust_container,
-            total_torque=torque_container,
-            efficiency=eta_container,
-            figure_of_merit=FoM_container,
-            thrust_coefficient=C_T_containter,
-            torque_coefficient=C_Q_containter,
-            power_coefficient=C_P_containter,
-            residual=residual_container,
+    outputs = RotorAnalysisOutputs(
+        axial_induced_velocity=ux_container,
+        tangential_induced_velocity=None,
+        sectional_thrust=dT_container,
+        sectional_torque=dQ_container,
+        total_thrust=thrust_container,
+        total_torque=torque_container,
+        efficiency=eta_container,
+        figure_of_merit=FoM_container,
+        thrust_coefficient=C_T_containter,
+        torque_coefficient=C_Q_containter,
+        power_coefficient=C_P_containter,
+        residual=residual_container,
         )
+
+    outputs.Cl = Cl
+    outputs.Cd = Cd
+
 
     # # print(state_vec.value)
     # # print(residual.value)
