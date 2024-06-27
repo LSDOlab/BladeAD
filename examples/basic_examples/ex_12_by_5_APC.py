@@ -39,7 +39,7 @@ thrust_vector=csdl.Variable(value=np.array([1 * np.sin(quad_pitch), 0, -1 * np.c
 thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
 
 mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 1] = 10 #np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
+mesh_vel_np[:, 0] = 10 #np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
 rpm = csdl.Variable(value=3864 * np.ones((num_nodes,)))
 
@@ -64,7 +64,7 @@ airfoil_model = CompositeAirfoilModel(
 )
 
 
-bem_mesh_parameters = RotorMeshParameters(
+mesh_parameters = RotorMeshParameters(
     thrust_vector=thrust_vector,
     thrust_origin=thrust_origin,
     chord_profile=chord_interp,
@@ -76,21 +76,22 @@ bem_mesh_parameters = RotorMeshParameters(
     norm_hub_radius=0.0542
 )
 
-bem_inputs = RotorAnalysisInputs(
+inputs = RotorAnalysisInputs(
     rpm=rpm,
-    mesh_parameters=bem_mesh_parameters,
+    mesh_parameters=mesh_parameters,
     mesh_velocity=mesh_velocity,
 )
 
-bem_model = PittPetersModel(
+model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model,
+    airfoil_model=e63_2d_model,
     integration_scheme='trapezoidal',
+    tip_loss=False,
 )
 
 import time 
 
-outputs = bem_model.evaluate(inputs=bem_inputs)
+outputs = model.evaluate(inputs=inputs)
 
 
 T = outputs.total_thrust.value

@@ -18,7 +18,10 @@ def compute_inflow_angle(
     shape,
     num_blades,
     airfoil_model,
-    atmos_states,
+    # atmos_states,
+    mu, 
+    rho,
+    a,
     chord_profile,
     twist_profile, 
     frame_velocity,
@@ -30,9 +33,10 @@ def compute_inflow_angle(
     tip_loss,
     initial_value=None,
 ):
-    mu = atmos_states.dynamic_viscosity
-    rho = atmos_states.density
-    a = atmos_states.speed_of_sound
+    # mu = atmos_states.dynamic_viscosity
+    # rho = atmos_states.density
+    # a = atmos_states.speed_of_sound
+    
     Vx = frame_velocity[:, :, :, 0] 
     Vt =  tangential_velocity
     Vr = (Vx**2 + Vt**2)**0.5
@@ -69,7 +73,7 @@ def compute_inflow_angle(
     # Setting up bracketed search
     if initial_value is None:
         eps = 1e-7
-        solver = csdl.nonlinear_solvers.BracketedSearch(max_iter=50, elementwise_states=True)
+        solver = csdl.nonlinear_solvers.BracketedSearch(max_iter=50, residual_jac_kwargs={'elementwise':True})
         solver.add_state(phi, bem_residual, bracket=(0., np.pi / 2 - eps))
     else:
         raise NotImplementedError

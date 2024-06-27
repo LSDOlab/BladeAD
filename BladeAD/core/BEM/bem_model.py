@@ -45,6 +45,15 @@ class BEMModel:
         num_blades = inputs.mesh_parameters.num_blades
         norm_hub_radius = inputs.mesh_parameters.norm_hub_radius
 
+        if isinstance(num_azimuthal, list):
+            num_azimuthal = num_azimuthal[0]
+        
+        if isinstance(num_radial, list):
+            num_radial = num_radial[0]
+
+        if isinstance(num_blades, list):
+            num_blades = num_blades[0]
+
         shape = (num_nodes, num_radial, num_azimuthal)
         thrust_vector = inputs.mesh_parameters.thrust_vector
         thrust_origin = inputs.mesh_parameters.thrust_origin
@@ -54,6 +63,37 @@ class BEMModel:
         twist_profile = inputs.mesh_parameters.twist_profile
         rpm = inputs.rpm
 
+        if mesh_velocity.shape[0] != num_nodes:
+            raise Exception(f"Inconsisten shapes. 'num_nodes' is {self.num_nodes} but 'mesh_velocity' has shape {mesh_velocity.shape}. First dimension (num_nodes) needs to match")
+
+        if isinstance(chord_profile, list):
+            chord_profile = chord_profile[0]
+
+        if isinstance(twist_profile, list):
+            twist_profile = twist_profile[0]
+
+        if isinstance(radius, list):
+            radius = radius[0]
+
+        if isinstance(norm_hub_radius, list):
+            norm_hub_radius = norm_hub_radius[0]
+
+        if isinstance(thrust_vector, list):
+            thrust_vector_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
+            for i in range(self.num_nodes):
+                thrust_vector_mat = thrust_vector_mat.set(
+                    csdl.slice[i, :], value=thrust_vector[i]
+                )
+            thrust_vector = thrust_vector_mat
+
+        if isinstance(thrust_origin, list):
+            thrust_origin_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
+            for i in range(self.num_nodes):
+                thrust_origin_mat = thrust_origin_mat.set(
+                    csdl.slice[i, :], value=thrust_origin[i]
+                )
+            thrust_origin = thrust_origin_mat
+        
         pre_process_outputs = preprocess_input_variables(
             shape=shape,
             radius=radius,
@@ -65,6 +105,7 @@ class BEMModel:
             origin_velocity=mesh_velocity,
             rpm=rpm,
             num_blades=num_blades,
+            atmos_states=inputs.atmos_states,
         )
 
         # Compute the rotor frame velocities from "mesh" velocities
@@ -84,7 +125,10 @@ class BEMModel:
             shape=shape,
             num_blades=num_blades,
             airfoil_model=self.airfoil_model,
-            atmos_states=inputs.atmos_states,
+            # atmos_states=inputs.atmos_states,
+            mu=pre_process_outputs.mu_exp,
+            rho=pre_process_outputs.rho_exp,
+            a=pre_process_outputs.a_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
             frame_velocity=local_frame_velocities.local_frame_velocity,
@@ -106,7 +150,7 @@ class BEMModel:
             radius_vector=pre_process_outputs.radius_vector_exp,
             radius=radius,
             sigma=pre_process_outputs.sigma,
-            rho=inputs.atmos_states.density,
+            rho=pre_process_outputs.rho_exp,
             F=bem_implicit_outputs.tip_loss_factor,
             chord_profile=pre_process_outputs.chord_profile_exp,
             Cl=bem_implicit_outputs.Cl,

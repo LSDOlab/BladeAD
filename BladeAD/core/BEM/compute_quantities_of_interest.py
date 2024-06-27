@@ -66,8 +66,8 @@ def compute_quantities_of_interest(
     torque = integrate_quantity(dQ, integration_scheme)
     
     # compute thrust/torque coefficient
-    C_T = thrust / rho / n**2 / (2 * radius)**4
-    C_Q = torque / rho / n**2 / (2 * radius)**5
+    C_T = thrust / rho[:, 0, 0] / n**2 / (2 * radius)**4
+    C_Q = torque / rho[:, 0, 0] / n**2 / (2 * radius)**5
     C_P = 2 * np.pi * C_Q
 
     # Compute advance ratio and efficiency and FOM

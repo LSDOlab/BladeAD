@@ -17,6 +17,9 @@ class PreProcessOutputs:
     chord_profile_exp: csdl.Variable
     twist_profile_exp: csdl.Variable
     sigma: csdl.Variable
+    rho_exp: csdl.Variable
+    mu_exp: csdl.Variable
+    a_exp: csdl.Variable
 
 
 def preprocess_input_variables(
@@ -29,6 +32,7 @@ def preprocess_input_variables(
     thrust_vector: csdl.Variable,
     thrust_origin: csdl.Variable,
     origin_velocity: csdl.Variable,
+    atmos_states,
     num_blades: int,
 ) -> PreProcessOutputs:
     # extract shape
@@ -51,6 +55,27 @@ def preprocess_input_variables(
         thrust_origin_vel_exp = csdl.expand(origin_velocity, (num_nodes, 3))
     else:
         thrust_origin_vel_exp = origin_velocity
+
+    # expand atmospheric states
+    rho = atmos_states.density
+    mu = atmos_states.dynamic_viscosity
+    a = atmos_states.speed_of_sound
+
+    if rho.shape == (1, ):
+        rho_exp = csdl.expand(rho, shape)
+    else:
+        rho_exp = csdl.expand(rho, shape, action="i->ijk")
+
+    if mu.shape == (1, ):
+        mu_exp = csdl.expand(mu, shape)
+    else:
+        mu_exp = csdl.expand(mu, shape, action="i->ijk")
+
+    if a.shape == (1, ):
+        a_exp = csdl.expand(a, shape)
+    else:
+        a_exp = csdl.expand(a, shape, action="i->ijk")
+        
 
     # compute blade element width
     r_hub = norm_hub_radius * radius
@@ -110,6 +135,9 @@ def preprocess_input_variables(
         chord_profile_exp=chord_profile_exp,
         twist_profile_exp=twist_profile_exp,
         sigma=sigma,
+        rho_exp=rho_exp,
+        mu_exp=mu_exp,
+        a_exp=a_exp,
     )
 
     return pre_process_outputs
