@@ -10,10 +10,10 @@ from BladeAD.utils.plot import make_polarplot
 import numpy as np
 
 
-recorder = csdl.Recorder(inline=True, debug=True)
+recorder = csdl.Recorder(inline=False, debug=False)
 recorder.start()
 
-num_nodes = 5
+num_nodes = 10
 num_radial = 35
 num_azimuthal = 40
 
@@ -136,22 +136,38 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model_1, #airfoil_model_1,
+    airfoil_model=mh_117_2d_model, #airfoil_model_1,
     integration_scheme='trapezoidal',
 )
 
 import time 
 
+t1 = time.time()
 outputs = bem_model.evaluate(inputs=bem_inputs)
 
+recorder.execute()
 
-T = outputs.total_thrust.value
-Q = outputs.total_torque.value
+T = outputs.total_thrust
+Q = outputs.total_torque
 
+print("thrust Peters--He", T.value)
+print("torque Peters--He", Q.value)
+t2 = time.time()
+print(t2-t1)
 
+t3 = time.time()
+jax_sim = csdl.experimental.JaxSimulator(
+    recorder=recorder, gpu=True,
+    additional_inputs=[rpm],
+    additional_outputs=[T, Q]
+)
 
-print("thrust Peters--He", T)
-print("torque Peters--He", Q)
+jax_sim.run()
+
+print("thrust Peters--He", jax_sim[T])
+print("torque Peters--He", jax_sim[Q])
+t4 = time.time()
+print(t4-t3)
 
 exit()
 

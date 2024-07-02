@@ -70,6 +70,8 @@ def compute_quantities_of_interest(
     C_Q = torque / rho[:, 0, 0] / n**2 / (2 * radius)**5
     C_P = 2 * np.pi * C_Q
 
+    power = C_P * rho[:, 0, 0] * n**3 * (2 * radius)**5
+
     # Compute advance ratio and efficiency and FOM
     Vx_num_nodes = Vx[:, 0, 0]
     J = Vx_num_nodes / n / (2 * radius)
@@ -84,6 +86,7 @@ def compute_quantities_of_interest(
         sectional_torque=dQ2,
         total_thrust=thrust,
         total_torque=torque,
+        total_power=power,
         efficiency=eta,
         figure_of_merit=FoM,
         thrust_coefficient=C_T,

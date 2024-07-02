@@ -65,6 +65,7 @@ class PetersHeModel:
             origin_velocity=mesh_velocity,
             rpm=rpm,
             num_blades=num_blades,
+            atmos_states=inputs.atmos_states,
         )
 
         local_frame_velocities = compute_local_frame_velocities(
@@ -90,7 +91,10 @@ class PetersHeModel:
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
             airfoil_model=self.airfoil_model,
-            atmos_states=inputs.atmos_states,
+            # atmos_states=inputs.atmos_states,
+            rho_exp=pre_process_outputs.rho_exp,
+            mu_exp=pre_process_outputs.mu_exp,
+            a_exp=pre_process_outputs.a_exp,
             num_blades=num_blades,
             dr=pre_process_outputs.element_width,
             radius_vec_exp=pre_process_outputs.radius_vector_exp,

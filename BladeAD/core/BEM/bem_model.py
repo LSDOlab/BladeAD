@@ -126,7 +126,7 @@ class BEMModel:
             num_blades=num_blades,
             airfoil_model=self.airfoil_model,
             # atmos_states=inputs.atmos_states,
-            mu=pre_process_outputs.mu_exp,
+            mu=pre_process_outputs.mu_exp, # viscosity, not inflow ratio
             rho=pre_process_outputs.rho_exp,
             a=pre_process_outputs.a_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,

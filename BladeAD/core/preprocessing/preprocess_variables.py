@@ -61,6 +61,15 @@ def preprocess_input_variables(
     mu = atmos_states.dynamic_viscosity
     a = atmos_states.speed_of_sound
 
+    if isinstance(rho, (float, int)):
+        rho = csdl.Variable(shape=(1, ), value=rho)
+
+    if isinstance(mu, (float, int)):
+        mu = csdl.Variable(shape=(1, ), value=mu)
+
+    if isinstance(a, (float, int)):
+        a = csdl.Variable(shape=(1, ), value=a)
+    
     if rho.shape == (1, ):
         rho_exp = csdl.expand(rho, shape)
     else:
