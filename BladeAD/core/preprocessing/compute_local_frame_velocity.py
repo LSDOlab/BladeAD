@@ -20,6 +20,7 @@ def compute_local_frame_velocities(
     azimuth_angle: csdl.Variable,
     radius_vec: csdl.Variable,
     radius: csdl.Variable,
+    hover_mode: bool,
 ) -> LocalFrameVelocities:
     
     # extract shape
@@ -54,7 +55,7 @@ def compute_local_frame_velocities(
         in_plane_ex = csdl.cross(normal_vec, in_plane_ey)
         
         # Free stream 
-        V_inf = csdl.norm(origin_velocity[i, :])
+        V_inf = csdl.norm(origin_velocity[i, :] + 1e-5)
 
         # project origin velocity along in-plane vectors
         in_plane_ux = csdl.vdot(origin_velocity[i, :], in_plane_ex)
@@ -94,13 +95,14 @@ def compute_local_frame_velocities(
 
         mu = mu.set(
             csdl.slice[i],
-            ((in_plane_ux**2 + in_plane_uy**2)**0.5) / angular_speed[i, 0, 0] / radius
+            (((in_plane_ux+1e-5)**2 + (in_plane_uy+1e-5)**2)**0.5) / angular_speed[i, 0, 0] / radius
         )
 
         disk_incline_angle =  disk_incline_angle.set(
             csdl.slice[i],
-            csdl.arccos(mu[i] * angular_speed[i, 0, 0] * radius  / (V_inf + 1e-5)),
+            csdl.arcsin((mu_z[i]) * angular_speed[i, 0, 0] * radius  / (V_inf + 1e-5))
         )
+
 
     V_tangential = local_frame_velocity[:, :, :, 1] * csdl.sin(azimuth_angle) - \
                    local_frame_velocity[:, :, :, 2] * csdl.cos(azimuth_angle) + \

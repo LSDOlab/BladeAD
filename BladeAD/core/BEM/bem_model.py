@@ -15,15 +15,18 @@ class BEMModel:
         airfoil_model,
         integration_scheme: str = 'trapezoidal',
         tip_loss:bool = True,
+        hover_mode: bool = False,
     ) -> None:
         csdl.check_parameter(num_nodes, 'num_nodes', types=int)
         csdl.check_parameter(integration_scheme, 'integration_scheme', values=('Simpson', 'Riemann', 'trapezoidal'))
         csdl.check_parameter(tip_loss, "tip_loss", types=bool)
+        csdl.check_parameter(hover_mode, "hover_mode", types=bool)
         
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
         self.tip_loss = tip_loss
+        self.hover_mode = hover_mode
 
     def evaluate(self, inputs: RotorAnalysisInputs, ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])) -> RotorAnalysisOutputs:
         """Evaluate the BEM solver.
@@ -80,7 +83,7 @@ class BEMModel:
 
         if isinstance(thrust_vector, list):
             thrust_vector_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
-            for i in range(self.num_nodes):
+            for i in csdl.frange(self.num_nodes):
                 thrust_vector_mat = thrust_vector_mat.set(
                     csdl.slice[i, :], value=thrust_vector[i]
                 )
@@ -88,7 +91,7 @@ class BEMModel:
 
         if isinstance(thrust_origin, list):
             thrust_origin_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
-            for i in range(self.num_nodes):
+            for i in csdl.frange(self.num_nodes):
                 thrust_origin_mat = thrust_origin_mat.set(
                     csdl.slice[i, :], value=thrust_origin[i]
                 )
@@ -118,6 +121,7 @@ class BEMModel:
             azimuth_angle=pre_process_outputs.azimuth_angle_exp,
             radius_vec=pre_process_outputs.radius_vector_exp,
             radius=radius,
+            hover_mode=self.hover_mode
         )
 
         # Solve for phi once with bracketed search
