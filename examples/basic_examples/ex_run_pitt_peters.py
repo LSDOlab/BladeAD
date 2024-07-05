@@ -121,23 +121,27 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PittPetersModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model_1,#NACA4412MLAirfoilModel(),
+    airfoil_model=airfoil_model,#NACA4412MLAirfoilModel(),
     integration_scheme='trapezoidal',
 )
 
 import time 
 
 outputs = bem_model.evaluate(inputs=bem_inputs)
-# t1 =  time.time()
-# print(csdl.derivative([outputs.total_thrust], [chord_profile]))
-# t2 = time.time()
-# print("time", t2-t1)
-# exit()
-# from csdl_alpha.src.operations.derivative.utils import verify_derivatives_inline
-# # verify_derivatives_inline([outputs.total_thrust], [radius], 1e-7, raise_on_error=True)
-# verify_derivatives_inline([outputs.total_thrust], [radius], 1e-7, raise_on_error=True)
-# recorder.stop()
-# exit()
+T = outputs.total_thrust
+T.set_as_constraint(lower=5.7, upper=5.7)
+Q = csdl.average(outputs.total_torque)
+Q.set_as_objective(scaler=10)
+
+print("thrust BEM", T.value)
+print("torque BEM", Q.value)
+jax_sim = csdl.experimental.JaxSimulator(
+    recorder=recorder, gpu=True,
+    additional_inputs=[rpm],
+    additional_outputs=[T, Q]
+)
+
+jax_sim.run()
 
 # make_polarplot(outputs.sectional_thrust, plot_contours=False)
 

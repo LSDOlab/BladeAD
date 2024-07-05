@@ -179,6 +179,9 @@ def solve_for_steady_state_inflow(
         CQ = torque / rho / (rpm[i] / 60)**2 / (2 * radius)**5
         CP = 2 * np.pi * CQ
 
+        power = CP * rho * (rpm[i] / 60)**3 * (2 * radius)**5
+
+
         # Compute advance ratio and efficiency and FOM
         J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius)
         eta = CT * J / CP
@@ -206,6 +209,7 @@ def solve_for_steady_state_inflow(
         sectional_torque=dQ_container,
         total_thrust=thrust_container,
         total_torque=torque_container,
+        total_power=power,
         efficiency=eta_container,
         figure_of_merit=FoM_container,
         thrust_coefficient=C_T_containter,

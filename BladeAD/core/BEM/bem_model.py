@@ -83,7 +83,7 @@ class BEMModel:
 
         if isinstance(thrust_vector, list):
             thrust_vector_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
-            for i in csdl.frange(self.num_nodes):
+            for i in range(self.num_nodes):
                 thrust_vector_mat = thrust_vector_mat.set(
                     csdl.slice[i, :], value=thrust_vector[i]
                 )
@@ -91,7 +91,7 @@ class BEMModel:
 
         if isinstance(thrust_origin, list):
             thrust_origin_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
-            for i in csdl.frange(self.num_nodes):
+            for i in range(self.num_nodes):
                 thrust_origin_mat = thrust_origin_mat.set(
                     csdl.slice[i, :], value=thrust_origin[i]
                 )
@@ -121,7 +121,6 @@ class BEMModel:
             azimuth_angle=pre_process_outputs.azimuth_angle_exp,
             radius_vec=pre_process_outputs.radius_vector_exp,
             radius=radius,
-            hover_mode=self.hover_mode
         )
 
         # Solve for phi once with bracketed search

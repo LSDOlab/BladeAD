@@ -3,6 +3,8 @@ from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_loca
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
 from BladeAD.core.pitt_peters.pitt_peters_inflow import solve_for_steady_state_inflow
 import csdl_alpha as csdl
+import numpy as np
+from typing import Union
 
 
 class PittPetersModel:
@@ -23,7 +25,14 @@ class PittPetersModel:
         self.tip_loss = tip_loss
 
 
-    def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
+    def evaluate(self, inputs: RotorAnalysisInputs, ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])) -> RotorAnalysisOutputs:
+        csdl.check_parameter(inputs, "inputs", types=RotorAnalysisInputs)
+        csdl.check_parameter(ref_point, "ref_point", types=(csdl.Variable, np.ndarray))
+
+        try:
+            ref_point.reshape((3, ))
+        except:
+            raise Exception("reference point must have shape (3, )")
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
         if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
@@ -32,6 +41,15 @@ class PittPetersModel:
         num_azimuthal = inputs.mesh_parameters.num_azimuthal
         num_blades = inputs.mesh_parameters.num_blades
         norm_hub_radius = inputs.mesh_parameters.norm_hub_radius
+
+        if isinstance(num_azimuthal, list):
+            num_azimuthal = num_azimuthal[0]
+        
+        if isinstance(num_radial, list):
+            num_radial = num_radial[0]
+
+        if isinstance(num_blades, list):
+            num_blades = num_blades[0]
 
         shape = (num_nodes, num_radial, num_azimuthal)
         thrust_vector = inputs.mesh_parameters.thrust_vector
@@ -53,6 +71,7 @@ class PittPetersModel:
             origin_velocity=mesh_velocity,
             rpm=rpm,
             num_blades=num_blades,
+            atmos_states=inputs.atmos_states,
         )
 
         local_frame_velocities = compute_local_frame_velocities(
@@ -88,5 +107,103 @@ class PittPetersModel:
             integration_scheme=self.integration_scheme,
             tip_loss=self.tip_loss,
         )
+
+    
+        thrust_vec_exp = pre_process_outputs.thrust_vector_exp
+        thrust_origin_exp = pre_process_outputs.thrust_origin_exp
+
+        thrust = dynamic_inflow_outputs.total_thrust
+        torque = dynamic_inflow_outputs.total_torque
+
+        forces = csdl.Variable(shape=(num_nodes, 3), value=0.)
+        moments = csdl.Variable(shape=(num_nodes, 3), value=0.)
+
+        # transform forces into body-fixed frame
+        if inputs.ac_states is not None:
+            phi = inputs.ac_states.phi        
+            theta = inputs.ac_states.theta
+            psi = inputs.ac_states.psi
+            
+            # Rotate forces into body-fixed reference frame
+            for i in csdl.frange(num_nodes):
+                L2B_mat = csdl.Variable(shape=(3, 3), value=0.)
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[0, 0],
+                    value=csdl.cos(theta[i]) * csdl.cos(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[0, 1],
+                    value=csdl.cos(theta[i]) * csdl.sin(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[0, 2],
+                    value= -csdl.sin(theta[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[1, 0],
+                    value=csdl.sin(phi[i]) * csdl.sin(theta[i]) * csdl.cos(psi[i]) - csdl.cos(phi[i]) * csdl.sin(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[1, 1],
+                    value=csdl.sin(phi[i]) * csdl.sin(theta[i]) * csdl.sin(psi[i]) + csdl.cos(phi[i]) * csdl.cos(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[1, 2],
+                    value=csdl.sin(phi[i]) * csdl.cos(theta[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[2, 0],
+                    value=csdl.cos(phi[i]) * csdl.sin(theta[i]) * csdl.cos(psi[i]) + csdl.sin(phi[i]) * csdl.sin(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[2, 1],
+                    value=csdl.cos(phi[i]) * csdl.sin(theta[i]) * csdl.sin(psi[i]) - csdl.sin(phi[i]) * csdl.cos(psi[i]),
+                )
+
+                L2B_mat = L2B_mat.set(
+                    slices=csdl.slice[2, 2],
+                    value=csdl.cos(phi[i]) * csdl.cos(theta[i]),
+                )
+                
+
+                forces = forces.set(
+                    csdl.slice[i, :],
+                    csdl.matvec(
+                        L2B_mat,
+                        thrust[i] * thrust_vec_exp[i, :],
+                    )
+                )
+
+                moments = moments.set(
+                    csdl.slice[i, :],
+                    csdl.cross(
+                        csdl.matvec(
+                            L2B_mat,
+                            thrust_origin_exp[i, :] - ref_point,
+                        ),
+                        forces[i, :])
+                )
+        else:
+            for i in csdl.frange(num_nodes):
+                forces = forces.set(
+                        csdl.slice[i, :], thrust[i] * thrust_vec_exp[i, :],
+                        )
+
+                moments = moments.set(
+                    csdl.slice[i, :],
+                    csdl.cross(
+                        thrust_origin_exp[i, :] - ref_point,
+                        forces[i, :])
+                    )
+
+        dynamic_inflow_outputs.forces = forces
+        dynamic_inflow_outputs.moments = moments
 
         return dynamic_inflow_outputs

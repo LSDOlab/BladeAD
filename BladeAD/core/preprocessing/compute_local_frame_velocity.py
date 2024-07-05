@@ -20,7 +20,6 @@ def compute_local_frame_velocities(
     azimuth_angle: csdl.Variable,
     radius_vec: csdl.Variable,
     radius: csdl.Variable,
-    hover_mode: bool,
 ) -> LocalFrameVelocities:
     
     # extract shape
