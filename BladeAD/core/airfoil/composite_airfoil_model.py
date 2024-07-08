@@ -57,6 +57,8 @@ class CompositeAirfoilModel:
             num_radial = shape[1]
         elif len(shape) == 2:
             num_radial = shape[0]
+        elif len(shape) == 1:
+            num_radial = shape[0]
         else:
             raise NotImplementedError(f"unknown shape {shape}")
 

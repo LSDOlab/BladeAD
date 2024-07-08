@@ -165,7 +165,10 @@ def solve_for_steady_state_inflow(
         # basic fixed point iteration for state update
         state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
-        solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100, elementwise_states=False)
+        solver = csdl.nonlinear_solvers.GaussSeidel(
+            max_iter=100, 
+            residual_jac_kwargs={'elementwise' : False, 'loop' : True}
+        )
         solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
         solver.run()
 
