@@ -14,7 +14,7 @@ import numpy as np
 recorder = csdl.Recorder(inline=False, debug=False, expand_ops=False)
 recorder.start()
 
-vectorized = False
+vectorized = True
 num_nodes = 20
 num_radial = 35
 num_azimuthal = 40
@@ -131,7 +131,7 @@ if vectorized:
 
     bem_model = BEMModel(
         num_nodes=num_nodes,
-        airfoil_model=airfoil_model, #airfoil_model_1,
+        airfoil_model=mh_117_2d_model, #airfoil_model_1,
         integration_scheme='trapezoidal',
     )
     outputs = bem_model.evaluate(inputs=bem_inputs)
