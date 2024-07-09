@@ -14,10 +14,10 @@ import numpy as np
 recorder = csdl.Recorder(inline=False, debug=False, expand_ops=False)
 recorder.start()
 
-vectorized = True
-num_nodes = 20
-num_radial = 35
-num_azimuthal = 40
+vectorized = False
+num_nodes = 10
+num_radial = 25
+num_azimuthal = 25
 
 num_blades = 2
 num_cp = 5
@@ -136,6 +136,9 @@ if vectorized:
     )
     outputs = bem_model.evaluate(inputs=bem_inputs)
 
+    thrust_stack = outputs.total_thrust
+    torque_stack = outputs.total_torque
+
 
 else:
     bem_model = BEMModel(
@@ -143,8 +146,10 @@ else:
         airfoil_model=mh_117_2d_model, #airfoil_model_1,
         integration_scheme='trapezoidal',
     )
+
+    thrust_stack = csdl.Variable(shape=(num_nodes, ), value=0.)
+    torque_stack = csdl.Variable(shape=(num_nodes, ), value=0.)
     
-    # for i in range(8):
     for i in csdl.frange(num_nodes):
         bem_inputs = RotorAnalysisInputs(
             rpm=rpm[i],
@@ -154,20 +159,29 @@ else:
 
         outputs = bem_model.evaluate(inputs=bem_inputs)
 
+        thrust_stack = thrust_stack.set(csdl.slice[i], outputs.total_thrust)
+        torque_stack = torque_stack.set(csdl.slice[i], outputs.total_torque)
+
 
 import time 
 
 
-torque = csdl.average(outputs.total_torque)
+torque = csdl.average(torque_stack)
 torque.set_as_objective(scaler=10)
-thrust = outputs.total_thrust
+thrust = csdl.average(thrust_stack)
 thrust.set_as_constraint(upper=5.5, lower=5.5, scaler=1/5)
 
 jax_sim = csdl.experimental.JaxSimulator(
     recorder=recorder, gpu=False,
 )
 
-jax_sim.check_totals()
+jax_sim.compute_totals()
+
+t1 = time.time()
+jax_sim.compute_totals()
+t2 = time.time()
+
+print(t2 - t1)
 
 exit()
 

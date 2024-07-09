@@ -84,6 +84,7 @@ def compute_quantities_of_interest(
         tangential_induced_velocity=ut,
         sectional_thrust=dT2,
         sectional_torque=dQ2,
+        sectional_drag=dQ2 / radius_vector,
         total_thrust=thrust,
         total_torque=torque,
         total_power=power,

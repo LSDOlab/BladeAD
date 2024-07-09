@@ -165,6 +165,7 @@ class BEMModel:
         )
 
         bem_outputs.residual = bem_implicit_outputs.bem_residual
+        bem_outputs.sectional_inflow_angle = bem_implicit_outputs.inflow_angle
 
         thrust_vec_exp = pre_process_outputs.thrust_vector_exp
         thrust_origin_exp = pre_process_outputs.thrust_origin_exp
