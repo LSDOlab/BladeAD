@@ -303,6 +303,7 @@ def solve_for_steady_state_inflow(
     C_Q_containter = csdl.Variable(shape=(num_nodes, ), value=0)
     eta_container = csdl.Variable(shape=(num_nodes, ), value=0)
     FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
+    inflow_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
     for i in csdl.frange(num_nodes):
         # Initialize implicit variables (state vector)
@@ -506,6 +507,7 @@ def solve_for_steady_state_inflow(
         FoM = CT * (CT/2)**0.5 / CP
 
         # Storing data
+        inflow_container = inflow_container.set(csdl.slice[i, :, :], inflow)
         ux_container = ux_container.set(csdl.slice[i, :, :], ux)
         dT_container = dT_container.set(csdl.slice[i, :, :], dT)
         dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
