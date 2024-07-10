@@ -31,7 +31,7 @@ def compute_inflow_angle(
     hub_radius,
     sigma,
     tip_loss,
-    memory_efficiency=True,
+    memory_efficiency=False,
 ):
     
     Vx = frame_velocity[:, :, :, 0] 

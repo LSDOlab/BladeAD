@@ -28,7 +28,7 @@ class AtmosStates(csdl.VariableGroup):
 
 @dataclass
 class RotorAnalysisInputs(csdl.VariableGroup):
-    atmos_states = AtmosStates()
+    atmos_states : AtmosStates = AtmosStates()
     rpm: csdl.Variable = None
     ac_states: csdl.Variable = None
     mesh_velocity: csdl.Variable = None
@@ -41,6 +41,7 @@ class RotorAnalysisOutputs(csdl.VariableGroup):
     tangential_induced_velocity: csdl.Variable
     sectional_thrust: csdl.Variable
     sectional_torque: csdl.Variable
+    sectional_drag : csdl.Variable
     total_thrust: csdl.Variable
     total_torque: csdl.Variable
     total_power: csdl.Variable
@@ -52,4 +53,6 @@ class RotorAnalysisOutputs(csdl.VariableGroup):
     residual: csdl.Variable = None
     forces: csdl.Variable = None
     moments: csdl.Variable = None
+    sectional_inflow_angle = None
+    
 
