@@ -24,8 +24,11 @@ class PetersHeModel:
         if num_nodes < 1:
             raise ValueError("num_nodes must be an integer greater or equal to 1")
 
-        if Q > 3:
-            raise NotImplementedError("Q greater than 3 has not been tested yet and will likely not converge")
+        if M > Q:
+            raise ValueError(f"M ({M}) (highest harmonic number) must not be greater than Q ({Q}) (highest power of r/R)")
+
+        # if Q > 5:
+        #     raise NotImplementedError("Q greater than 5 has significant computational cost and is not support in this version.")
 
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
@@ -66,6 +69,12 @@ class PetersHeModel:
             rpm=rpm,
             num_blades=num_blades,
             atmos_states=inputs.atmos_states,
+            theta_0=inputs.theta_0,
+            theta_1_c=inputs.theta_1_c,
+            theta_1_s=inputs.theta_1_s,
+            xi_0=inputs.xi_0,
+            xi_1_c=inputs.xi_1_c,
+            xi_1_s=inputs.xi_1_s,
         )
 
         local_frame_velocities = compute_local_frame_velocities(
@@ -78,7 +87,7 @@ class PetersHeModel:
             radius=radius,
         )
 
-        dynamic_inflow_outputs = solve_for_steady_state_inflow(
+        dynamic_inflow_outputs_1 = solve_for_steady_state_inflow(
             shape=shape,
             psi=pre_process_outputs.azimuth_angle_exp,
             rpm=rpm,
@@ -107,4 +116,34 @@ class PetersHeModel:
             Q=self.Q,
         )
 
-        return dynamic_inflow_outputs
+        dynamic_inflow_outputs_2 = solve_for_steady_state_inflow(
+            shape=shape,
+            psi=pre_process_outputs.azimuth_angle_exp,
+            rpm=rpm,
+            radius=radius,
+            mu_z=local_frame_velocities.mu_z,
+            mu=local_frame_velocities.mu,
+            tangential_velocity=local_frame_velocities.tangential_velocity,
+            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            radius_vec=pre_process_outputs.radius_vector_exp,
+            chord_profile=pre_process_outputs.chord_profile_exp,
+            twist_profile=pre_process_outputs.twist_profile_exp,
+            airfoil_model=self.airfoil_model,
+            # atmos_states=inputs.atmos_states,
+            rho_exp=pre_process_outputs.rho_exp,
+            mu_exp=pre_process_outputs.mu_exp,
+            a_exp=pre_process_outputs.a_exp,
+            num_blades=num_blades,
+            dr=pre_process_outputs.element_width,
+            radius_vec_exp=pre_process_outputs.radius_vector_exp,
+            norm_radius_vec_exp=pre_process_outputs.norm_radius_exp,
+            disk_inclination_angle=local_frame_velocities.disk_inclination_angle,
+            hub_radius=pre_process_outputs.hub_radius,
+            integration_scheme=self.integration_scheme,
+            tip_loss=self.tip_loss,
+            M=self.M,
+            Q=self.Q,
+            initial_value=dynamic_inflow_outputs_1.states
+        )
+
+        return dynamic_inflow_outputs_2

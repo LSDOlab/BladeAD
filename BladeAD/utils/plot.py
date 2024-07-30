@@ -10,11 +10,13 @@ def make_polarplot(
         norm_hub_radius: Union[float] = 0.2,
         quantity_name: list[str] = ['quantity'], 
         plot_contours: bool = True,
-        num_contours: int = 10,
+        num_contours: int = 15,
         plot_min_max: bool=True,
         azimuthal_offset: Union[float, int, None] = None,
         fig_size: tuple = (10, 8),
         cmap: str='viridis',
+        vmin=None,
+        vmax=None,
 
     ):
     """Generate polar plots for quantities that vary azimuthally and radially. 
@@ -131,7 +133,7 @@ def make_polarplot(
             theta += np.deg2rad(azimuthal_offset)
 
         # Plot the contour plot for this node
-        mesh = ax.pcolormesh(theta, r, radial_data, cmap=cmap)
+        mesh = ax.pcolormesh(theta, r, radial_data, cmap=cmap, vmin=vmin, vmax=vmax, shading="auto")
         contour_levels = np.linspace(np.min(radial_data), np.max(radial_data), num_contours)  # Adjust number of contour levels as needed
         if plot_contours:
             cs = ax.contour(theta, r, radial_data, levels=contour_levels, colors='k', linestyles='dashed')
@@ -143,6 +145,7 @@ def make_polarplot(
 
         ax.set_theta_zero_location('E')  # Set 0 angle to the right
         ax.set_theta_direction(1)  # counter-clockwise direction
+        # ax.set_ylim(np.min(r), np.max(r))
 
         cbar = fig.colorbar(mesh, ax=ax, orientation='vertical', shrink=0.8)
 
@@ -156,7 +159,7 @@ def make_polarplot(
 
     fig.tight_layout()
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
 
 

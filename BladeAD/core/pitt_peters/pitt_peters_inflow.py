@@ -63,6 +63,7 @@ def solve_for_steady_state_inflow(
     C_Q_containter = csdl.Variable(shape=(num_nodes, ), value=0)
     eta_container = csdl.Variable(shape=(num_nodes, ), value=0)
     FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
+    inflow_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
 
     for i in range(num_nodes):
@@ -84,8 +85,7 @@ def solve_for_steady_state_inflow(
 
 
         # compute axial-induced velocity
-        ux = (lam_exp_i + mu_z[i]) * omega[i] * radius #radius_vec[i, :, :]
-        # ux = (lam_exp_i) * omega[i] * radius # radius_vec[i, :, :] #
+        ux = (lam_exp_i + mu_z[i]) * omega[i] * radius
 
         # compute inflow angle (ignoring tangential induction)
         phi = csdl.arctan(ux / Vt[i, :, :])
@@ -120,7 +120,7 @@ def solve_for_steady_state_inflow(
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
         dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
         dMx = radius_vec[i, :, :] * csdl.sin(psi[i, :, :]) * dT
-        dMy = radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
+        dMy = -radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
 
         thrust = integrate_quantity(dT, integration_scheme)
         Mx = integrate_quantity(dMx, integration_scheme)
@@ -183,6 +183,10 @@ def solve_for_steady_state_inflow(
 
         # compute thrust/torque/power coefficient
         CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**4
+        area = np.pi * radius**2
+        V_tip = rpm[i] / 60 * 2 * np.pi * radius
+        C_T_new = thrust / rho[i, 0, 0]/ area / V_tip**2
+
         CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**5
         CP = 2 * np.pi * CQ
 
@@ -195,13 +199,14 @@ def solve_for_steady_state_inflow(
         FoM = CT * (CT/2)**0.5 / CP
 
         # Storing data
+        inflow_container = inflow_container.set(csdl.slice[i, :, :], lam_exp_i)
         ux_container = ux_container.set(csdl.slice[i, :, :], ux)
         dT_container = dT_container.set(csdl.slice[i, :, :], dT)
         dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
         dD_container = dD_container.set(csdl.slice[i, :, :], dQ / radius_vec[i, :, :])
         thrust_container = thrust_container.set(csdl.slice[i], thrust)
         torque_container = torque_container.set(csdl.slice[i], torque)
-        C_T_containter = C_T_containter.set(csdl.slice[i], CT)
+        C_T_containter = C_T_containter.set(csdl.slice[i], C_T_new)
         C_P_containter = C_P_containter.set(csdl.slice[i], CP)
         C_Q_containter = C_Q_containter.set(csdl.slice[i], CQ)
         eta_container = eta_container.set(csdl.slice[i], eta)
@@ -226,6 +231,9 @@ def solve_for_steady_state_inflow(
         power_coefficient=C_P_containter,
         residual=residual_container,
         )
+
+    outputs.inflow = inflow_container
+
 
     # outputs.Cl = Cl
     # outputs.Cd = Cd
