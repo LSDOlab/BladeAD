@@ -81,8 +81,8 @@ peters_he_model = PetersHeModel(
     num_nodes=num_nodes,
     airfoil_model=naca_0012_airfoil_model, #airfoil_model, #
     tip_loss=True,
-    Q=1,
-    M=1,
+    Q=6,
+    M=6,
 )
 
 outputs = peters_he_model.evaluate(inputs=inputs)

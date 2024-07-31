@@ -64,6 +64,7 @@ def solve_for_steady_state_inflow(
     eta_container = csdl.Variable(shape=(num_nodes, ), value=0)
     FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
     inflow_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    phi_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
 
     for i in range(num_nodes):
@@ -204,6 +205,7 @@ def solve_for_steady_state_inflow(
         dT_container = dT_container.set(csdl.slice[i, :, :], dT)
         dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
         dD_container = dD_container.set(csdl.slice[i, :, :], dQ / radius_vec[i, :, :])
+        phi_container = phi_container.set(csdl.slice[i, :, :], phi)
         thrust_container = thrust_container.set(csdl.slice[i], thrust)
         torque_container = torque_container.set(csdl.slice[i], torque)
         C_T_containter = C_T_containter.set(csdl.slice[i], C_T_new)
@@ -233,6 +235,7 @@ def solve_for_steady_state_inflow(
         )
 
     outputs.inflow = inflow_container
+    outputs.sectional_inflow_angle = phi_container
 
 
     # outputs.Cl = Cl

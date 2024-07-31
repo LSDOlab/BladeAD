@@ -95,10 +95,10 @@ for tilt_angle in tilt_angles:
     )
 
     bem_model = BEMModel(
-    num_nodes=num_nodes,
-    airfoil_model=airfoil_model,
-    integration_scheme='trapezoidal',
-)
+        num_nodes=num_nodes,
+        airfoil_model=airfoil_model,
+        integration_scheme='trapezoidal',
+    )
 
     pitt_peters_model = PittPetersModel(
         num_nodes=num_nodes,

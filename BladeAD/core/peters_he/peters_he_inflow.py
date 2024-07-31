@@ -468,6 +468,7 @@ def solve_for_steady_state_inflow(
     ux_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     alpha_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dT_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    dD_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dL_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dQ_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     thrust_container = csdl.Variable(shape=(num_nodes, ), value=0)
@@ -480,6 +481,7 @@ def solve_for_steady_state_inflow(
     eta_container = csdl.Variable(shape=(num_nodes, ), value=0)
     FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
     inflow_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    phi_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
     for i in range(num_nodes):
         # Initialize implicit variables (state vector)
@@ -526,10 +528,11 @@ def solve_for_steady_state_inflow(
         F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
 
         F_initial = F_tip * F_hub 
-        if tip_loss:
-            F = (1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))) #* 0.6
-        else:
-            F = 1
+        # if tip_loss:
+        #     F = (1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))) #* 0.6
+        # else:
+        #     F = 1
+        F = F_initial
 
         # Compute thrust (and torque)
         # sectional (dT)
@@ -698,6 +701,8 @@ def solve_for_steady_state_inflow(
         dT_container = dT_container.set(csdl.slice[i, :, :], dT)
         dL_container = dT_container.set(csdl.slice[i, :, :], dL)
         dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
+        dD_container = dD_container.set(csdl.slice[i, :, :], dQ / radius_vec[i, :, :])
+        phi_container = phi_container.set(csdl.slice[i, :, :], phi)
         thrust_container = thrust_container.set(csdl.slice[i], thrust)
         torque_container = torque_container.set(csdl.slice[i], torque)
         power_container = power_container.set(csdl.slice[i], power)
@@ -713,7 +718,7 @@ def solve_for_steady_state_inflow(
 
     outputs = RotorAnalysisOutputs(
         axial_induced_velocity=ux_container,
-        sectional_drag=None,
+        sectional_drag=dD_container,
         tangential_induced_velocity=None,
         sectional_thrust=dT_container,
         sectional_torque=dQ_container,
@@ -736,6 +741,7 @@ def solve_for_steady_state_inflow(
     outputs.sectional_lift = dL_container
     outputs.states = states_container
     outputs.alpha = alpha_container
+    outputs.sectional_inflow_angle = phi_container
 
 
     return outputs
