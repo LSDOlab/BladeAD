@@ -185,6 +185,9 @@ def solve_for_steady_state_inflow(
 
         # compute thrust/torque/power coefficient
         CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**4
+        area = np.pi * radius[i, 0, 0]**2
+        V_tip = rpm[i] / 60 * 2 * np.pi * radius[i, 0, 0]
+        C_T_new = thrust / rho[i, 0, 0]/ area / V_tip**2
         CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**5
         CP = 2 * np.pi * CQ
 
