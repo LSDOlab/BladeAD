@@ -11,13 +11,13 @@ from BladeAD.utils.plot import make_polarplot
 import numpy as np
 
 
-recorder = csdl.Recorder(inline=False, debug=False, expand_ops=False)
+recorder = csdl.Recorder(inline=True, debug=False, expand_ops=False)
 recorder.start()
 
 vectorized = False
-num_nodes = 10
-num_radial = 25
-num_azimuthal = 25
+num_nodes = 1
+num_radial = 100
+num_azimuthal = 100
 
 num_blades = 2
 num_cp = 5
@@ -171,15 +171,16 @@ torque.set_as_objective(scaler=10)
 thrust = csdl.average(thrust_stack)
 thrust.set_as_constraint(upper=5.5, lower=5.5, scaler=1/5)
 
+
+recorder.iinline = False
 jax_sim = csdl.experimental.JaxSimulator(
     recorder=recorder, gpu=False,
 )
-
-jax_sim.compute_totals()
-
 t1 = time.time()
 jax_sim.compute_totals()
 t2 = time.time()
+
+jax_sim.compute_totals()
 
 print(t2 - t1)
 

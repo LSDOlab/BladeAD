@@ -89,17 +89,17 @@ def compute_local_frame_velocities(
         # compute mu & mu_z
         mu_z = mu_z.set(
             csdl.slice[i],
-            normal_uz / angular_speed[i, 0, 0] / radius
+            normal_uz / angular_speed[i, 0, 0] / radius[i, 0, 0]
         )
 
         mu = mu.set(
             csdl.slice[i],
-            (((in_plane_ux+1e-5)**2 + (in_plane_uy+1e-5)**2)**0.5) / angular_speed[i, 0, 0] / radius
+            (((in_plane_ux+1e-5)**2 + (in_plane_uy+1e-5)**2)**0.5) / angular_speed[i, 0, 0] / radius[i, 0, 0]
         )
 
         disk_incline_angle =  disk_incline_angle.set(
             csdl.slice[i],
-            csdl.arcsin((mu_z[i]) * angular_speed[i, 0, 0] * radius  / (V_inf + 1e-5))
+            csdl.arcsin((mu_z[i]) * angular_speed[i, 0, 0] * radius[i, 0, 0]  / (V_inf + 1e-5))
         )
 
 

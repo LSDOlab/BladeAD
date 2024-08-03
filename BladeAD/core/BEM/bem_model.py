@@ -96,6 +96,9 @@ class BEMModel:
                     csdl.slice[i, :], value=thrust_origin[i]
                 )
             thrust_origin = thrust_origin_mat
+
+        # if radius.shape == (num_nodes, ):
+        radius = csdl.expand(radius, shape, action='i->ijk')
         
         pre_process_outputs = preprocess_input_variables(
             shape=shape,
@@ -181,6 +184,15 @@ class BEMModel:
             phi = inputs.ac_states.phi        
             theta = inputs.ac_states.theta
             psi = inputs.ac_states.psi
+
+            if phi.shape != (num_nodes, ):
+                phi = csdl.expand(phi, (num_nodes, ))
+
+            if theta.shape != (num_nodes, ):
+                theta = csdl.expand(theta, (num_nodes, ))
+
+            if psi.shape != (num_nodes, ):
+                psi = csdl.expand(psi, (num_nodes, ))
             
             # Rotate forces into body-fixed reference frame
             for i in csdl.frange(num_nodes):

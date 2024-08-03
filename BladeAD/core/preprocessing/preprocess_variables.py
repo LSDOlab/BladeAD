@@ -45,7 +45,7 @@ def preprocess_input_variables(
         thrust_vector_exp = csdl.expand(thrust_vector, (num_nodes, 3), action="j->ij")
     else:
         thrust_vector_exp = thrust_vector
-
+    
     if thrust_origin.shape != (num_nodes, 3):
         thrust_origin_exp = csdl.expand(thrust_origin, (num_nodes, 3), action="j->ij")
     else:
@@ -55,6 +55,7 @@ def preprocess_input_variables(
         thrust_origin_vel_exp = csdl.expand(origin_velocity, (num_nodes, 3))
     else:
         thrust_origin_vel_exp = origin_velocity
+
 
     # expand atmospheric states
     rho = atmos_states.density
@@ -125,8 +126,15 @@ def preprocess_input_variables(
     )
 
     # expand chord and twist profile
-    chord_profile_exp = csdl.expand(chord_profile, out_shape=shape, action="j->ijk")
-    twist_profile_exp = csdl.expand(twist_profile, out_shape=shape, action="j->ijk")
+    if chord_profile.shape == (num_nodes, num_radial):
+        chord_profile_exp = csdl.expand(chord_profile, out_shape=shape, action="ij->ijk")
+    else:
+        chord_profile_exp = csdl.expand(chord_profile, out_shape=shape, action="j->ijk")
+    
+    if twist_profile.shape == (num_nodes, num_radial):
+        twist_profile_exp = csdl.expand(twist_profile, out_shape=shape, action="ij->ijk")
+    else:
+        twist_profile_exp = csdl.expand(twist_profile, out_shape=shape, action="j->ijk")
 
     # compute sectional blade solidity
     sigma = num_blades * chord_profile_exp / 2.0 / np.pi / radius_vec_exp

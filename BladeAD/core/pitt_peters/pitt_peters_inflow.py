@@ -76,15 +76,15 @@ def solve_for_steady_state_inflow(
         # initial guess of normalized inflow
         lam_exp_i = (
             lam_0_exp
-            + lam_c_exp * radius_vec[i, :, :] / radius * csdl.cos(psi[i, :, :])
-            + lam_s_exp * radius_vec[i, :, :] / radius * csdl.sin(psi[i, :, :])
+            + lam_c_exp * radius_vec[i, :, :] / radius[i, :, :] * csdl.cos(psi[i, :, :])
+            + lam_s_exp * radius_vec[i, :, :] / radius[i, :, :] * csdl.sin(psi[i, :, :])
             # + lam_c_exp * norm_radius_vec[i, :, :] * csdl.cos(psi[i, :, :])
             # + lam_s_exp * norm_radius_vec[i, :, :] * csdl.sin(psi[i, :, :])
         )
 
 
         # compute axial-induced velocity
-        ux = (lam_exp_i + mu_z[i]) * omega[i] * radius #radius_vec[i, :, :]
+        ux = (lam_exp_i + mu_z[i]) * omega[i] * radius[i, :, :] #radius_vec[i, :, :]
         # ux = (lam_exp_i) * omega[i] * radius # radius_vec[i, :, :] #
 
         # compute inflow angle (ignoring tangential induction)
@@ -95,8 +95,8 @@ def solve_for_steady_state_inflow(
         Cl, Cd = airfoil_model.evaluate(alpha, Re[i, :, :], Ma[i, :, :])
 
         # Prandtl tip losses 
-        f_tip = num_blades / 2 * (radius - radius_vec_exp[i, :, :]) / radius / csdl.sin(phi)
-        f_hub = num_blades / 2 * (radius_vec_exp[i, :, :] - hub_radius) / hub_radius / csdl.sin(phi)
+        f_tip = num_blades / 2 * (radius[i, :, :] - radius_vec_exp[i, :, :]) / radius[i, :, :] / csdl.sin(phi)
+        f_hub = num_blades / 2 * (radius_vec_exp[i, :, :] - hub_radius[i, :, :]) / hub_radius[i, :, :] / csdl.sin(phi)
 
         F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
         F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
@@ -118,7 +118,7 @@ def solve_for_steady_state_inflow(
         # Compute sectional thrust, torque, moments and coefficients
         Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
-        dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
+        dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
         dMx = radius_vec[i, :, :] * csdl.sin(psi[i, :, :]) * dT
         dMy = radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
 
@@ -126,9 +126,9 @@ def solve_for_steady_state_inflow(
         Mx = integrate_quantity(dMx, integration_scheme)
         My = integrate_quantity(dMy, integration_scheme)
 
-        C_T = thrust / (rho[i, 0, 0] * np.pi * radius**2 * (omega[i] * radius) ** 2)
-        C_Mx = Mx / (rho[i, 0, 0] * np.pi * radius**2 * (omega[i] * radius) ** 2 * radius)
-        C_My = My / (rho[i, 0, 0] * np.pi * radius**2 * (omega[i] * radius) ** 2 * radius)
+        C_T = thrust / (rho[i, 0, 0] * np.pi * radius[i, 0, 0]**2 * (omega[i] * radius[i, 0, 0]) ** 2)
+        C_Mx = Mx / (rho[i, 0, 0] * np.pi * radius[i, 0, 0]**2 * (omega[i] * radius[i, 0, 0]) ** 2 * radius[i, 0, 0])
+        C_My = My / (rho[i, 0, 0] * np.pi * radius[i, 0, 0]**2 * (omega[i] * radius[i, 0, 0]) ** 2 * radius[i, 0, 0])
 
         # Solver for lam_i (different from lam_exp_i)
         lam_i = csdl.ImplicitVariable(shape=(1, ), value=0.1)
@@ -176,21 +176,21 @@ def solve_for_steady_state_inflow(
         solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
         solver.run()
 
-        dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr * F
-        dQ = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
+        dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
+        dQ = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr[i, :, :] * F
         thrust = integrate_quantity(dT, integration_scheme)
         torque = integrate_quantity(dQ, integration_scheme)
 
         # compute thrust/torque/power coefficient
-        CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**4
-        CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**5
+        CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**4
+        CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**5
         CP = 2 * np.pi * CQ
 
-        power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius)**5
+        power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius[i, 0, 0])**5
 
 
         # Compute advance ratio and efficiency and FOM
-        J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius)
+        J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius[i, 0, 0])
         eta = CT * J / CP
         FoM = CT * (CT/2)**0.5 / CP
 
