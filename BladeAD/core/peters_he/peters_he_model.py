@@ -57,6 +57,8 @@ class PetersHeModel:
         twist_profile = inputs.mesh_parameters.twist_profile
         rpm = inputs.rpm
 
+        radius = csdl.expand(radius, shape, action='i->ijk')
+
         pre_process_outputs = preprocess_input_variables(
             shape=shape,
             radius=radius,
