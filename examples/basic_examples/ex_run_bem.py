@@ -18,7 +18,7 @@ recorder.start()
 do_pitt_peters = True
 do_peters_he = True
 
-num_nodes = 10
+num_nodes = 5
 num_radial = 35
 num_azimuthal = 40
 
@@ -107,6 +107,8 @@ for tilt_angle in tilt_angles:
         num_nodes=num_nodes,
         airfoil_model=NACA4412MLAirfoilModel(),
         integration_scheme='trapezoidal',
+        Q=4,
+        M=4,
     )
 
 

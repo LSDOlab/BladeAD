@@ -74,6 +74,12 @@ class PittPetersModel:
             rpm=rpm,
             num_blades=num_blades,
             atmos_states=inputs.atmos_states,
+            theta_0=inputs.theta_0,
+            theta_1_c=inputs.theta_1_c,
+            theta_1_s=inputs.theta_1_s,
+            xi_0=inputs.xi_0,
+            xi_1_c=inputs.xi_1_c,
+            xi_1_s=inputs.xi_1_s,
         )
 
         local_frame_velocities = compute_local_frame_velocities(

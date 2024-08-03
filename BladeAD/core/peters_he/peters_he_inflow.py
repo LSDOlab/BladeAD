@@ -6,7 +6,10 @@ from BladeAD.utils.var_groups import RotorAnalysisOutputs
 from BladeAD.utils.smooth_quantities_spanwise import smooth_quantities_spanwise
 from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
 from BladeAD.utils.switching_fun import sigmoid
+import pandas as pd
+from BladeAD import PETERS_HE_NUM_SHAPE_FUN_PER_HARM_CSV
 
+df = pd.read_csv(PETERS_HE_NUM_SHAPE_FUN_PER_HARM_CSV)
 
 def double_factorial(n):
     """Implement the double factorial operation."""
@@ -16,6 +19,167 @@ def double_factorial(n):
         return 1
     else:
         return n * double_factorial(n - 2)
+
+# def compute_gamma(r, m, j, n):
+#     if (r + m) % 2 == 0:
+#         num_1 = (-1)**((n + j -2 * r) / 2)
+#         den_1 = (compute_h(n, m) * compute_h(j, r))**0.5
+#         term_1 = num_1 / den_1
+
+#         num_2 = 2 * ((2 * n + 1) * (2 * j + 1))**0.5
+#         den_2 = (j + n) * (j + n + 2) * ((j - n)**2 - 1)
+#         term_2 = num_2 / den_2
+
+#         return term_1 * term_2
+    
+#     elif ((r + m) % 2 != 0) and (abs(j - 1) == 1):
+#         num_1 = np.pi
+#         den_1 = (compute_h(n, m) * compute_h(j, r))**0.5
+#         term_1 = num_1 / den_1
+
+#         num_2 = np.sign(r - m)
+#         den_2 = (2 * n + 1) * (2 * j + 1)
+#         term_2 = num_2 / den_2
+
+#         return term_1 * term_2
+    
+#     elif  ((r + m) % 2 != 0) and (abs(j - 1) != 1):
+#         return 0
+    
+#     else:
+#         raise NotImplementedError
+
+# def compute_L(Q, r_harmonic, m_harmonic, x=2, type='cos'):
+#     if Q % 2 == 0:
+#         sub_mat_size = int((Q + 2) / 2)
+#     else:
+#         sub_mat_size = int((Q + 1) / 2)
+
+#     if type == 'sin':
+#         if isinstance(x, csdl.Variable):
+#             shape = (r_harmonic * sub_mat_size, m_harmonic * sub_mat_size)
+#             L_mat = csdl.Variable(shape=shape, value=np.zeros(shape))
+#         else:
+#             shape = (r_harmonic * sub_mat_size, m_harmonic * sub_mat_size)
+#             L_mat = np.zeros(shape)
+#     else:
+#         if isinstance(x, csdl.Variable):
+#             shape = ((r_harmonic + 1) * sub_mat_size, (m_harmonic +1) * sub_mat_size)
+#             L_mat = csdl.Variable(shape=shape, value=np.zeros(shape))
+#         else:
+#             shape = ((r_harmonic + 1) * sub_mat_size, (m_harmonic +1) * sub_mat_size)
+#             L_mat = np.zeros(shape)
+
+#     vec_ind_list = []
+#     for r in range(r_harmonic):
+#         print("r", r)
+#         if type == 'sin':
+#             r += 1
+#         else:
+#             r = r
+#         # if r > r_harmonic:
+#         #     break
+#         for m in range(m_harmonic):
+#             print("m", m)
+#             if type == 'sin':
+#                 m += 1
+#             else:
+#                 m = m
+#             # if m > m_harmonic:
+#             #     break
+#             if r == 0:
+#                     multiplier = x**m
+#             else:
+#                 if type == 'sin':
+#                     multiplier = x**(((m - r)**2)**0.5) - (-1)**min(r, m) * x**(m + r)
+#                 else:
+#                     multiplier = x**(((m - r)**2)**0.5) + (-1)**min(r, m) * x**(m + r)
+#             if isinstance(x, csdl.Variable):
+#                 sub_mat = csdl.Variable(shape=(sub_mat_size, sub_mat_size), value=0)
+#             else:
+#                 sub_mat = np.zeros((sub_mat_size, sub_mat_size))
+#             for j in range(sub_mat_size):
+#                 for n  in range(sub_mat_size):
+#                     if isinstance(x, csdl.Variable):
+#                         sub_mat = sub_mat.set(
+#                             slices=csdl.slice[j, n], 
+#                             value=multiplier * compute_gamma(r, m, r + 2 * j + 1, m + 2 * n + 1),
+#                         )
+#                     else:
+#                         sub_mat[j, n] = multiplier * compute_gamma(r, m, r + 2 * j + 1, m + 2 * n + 1)
+#             #         print(r, m, r + 2 * j + 1, m + 2 * n + 1)
+#             # print("submat", sub_mat)
+
+#             if type == 'sin':
+#                 row_ind_1 = sub_mat_size * (r-1)
+#                 row_ind_2 = row_ind_1 + sub_mat_size
+#                 col_ind_1 = sub_mat_size * (m-1)
+#                 col_ind_2 = col_ind_1 + sub_mat_size
+#                 if isinstance(x, csdl.Variable):
+#                     L_mat = L_mat.set(
+#                         slices=csdl.slice[row_ind_1:row_ind_2, col_ind_1:col_ind_2],
+#                         value=sub_mat
+#                     )
+#                 else:   
+#                     L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
+    
+#             else:
+#                 row_ind_1 = sub_mat_size * r
+#                 row_ind_2 = row_ind_1 + sub_mat_size
+#                 col_ind_1 = sub_mat_size * m
+#                 col_ind_2 = col_ind_1 + sub_mat_size
+#                 if isinstance(x, csdl.Variable):
+#                     L_mat = L_mat.set(
+#                         slices=csdl.slice[row_ind_1:row_ind_2, col_ind_1:col_ind_2],
+#                         value=sub_mat
+#                     )
+#                 else:   
+#                     L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
+
+#             if type == 'sin':
+#                 if m == 1:
+#                     for vec_ind in range(sub_mat_size):
+#                         vec_ind_list.append((r, r + 2 * vec_ind + 1))
+#             else:
+#                 print("r, m", r, m)
+#                 if m == 0:
+#                     for vec_ind in range(sub_mat_size):
+#                         vec_ind_list.append((r, r + 2 * vec_ind + 1))
+#                         # vec_ind.append((r, r + 1))
+#                         # vec_ind.append((r, r + 3))
+
+
+#             # L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
+
+#     return L_mat, vec_ind_list
+
+# def compute_h(j, r):
+#     num_1 = double_factorial(j + r - 1)
+#     if j - r < 0:
+#         num_2 = 1
+#     else:
+#         num_2 = double_factorial(j - r - 1)
+#     den_1 = double_factorial(j + r)
+#     if j - r < 0:
+#         den_2 = 1
+#     else:
+#         den_2 = double_factorial(j - r)
+
+#     return (num_1 * num_2) / (den_1 * den_2)
+
+def compute_h(j, r):
+    num_1 = double_factorial(j + r - 1)
+    if j - r < 0:
+        num_2 = 1
+    else:
+        num_2 = double_factorial(j - r - 1)
+    den_1 = double_factorial(j + r)
+    if j - r < 0:
+        den_2 = 1
+    else:
+        den_2 = double_factorial(j - r)
+
+    return (num_1 * num_2) / (den_1 * den_2)
 
 def compute_gamma(r, m, j, n):
     if (r + m) % 2 == 0:
@@ -46,137 +210,150 @@ def compute_gamma(r, m, j, n):
     else:
         raise NotImplementedError
 
-def compute_L(Q, r_harmonic, m_harmonic, x=2, type='cos'):
-    if Q % 2 == 0:
-        sub_mat_size = int((Q + 2) / 2)
+def compute_L(Q: int, M:int, x=2, type_:str="cos"):
+    """Compute the L matrix
+
+    Parameters
+    ----------
+    Q : int
+        Highest power of non-dimensional radius
+    M : int
+        Highest harmonic number
+    x : int, optional
+        wake skew angle, by default 2 (dummy number)
+    type_ : str, optional
+        wether to make cosine or sine L matrix, by default "cos"
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    if isinstance(x, csdl.Variable):
+        do_csdl = True
     else:
+        do_csdl = False
+
+    if Q % 2 == 0: # Even
+        sub_mat_size = int((Q + 2) / 2)
+    else: # Odd
         sub_mat_size = int((Q + 1) / 2)
 
-    if type == 'sin':
-        if isinstance(x, csdl.Variable):
-            shape = ((r_harmonic - 1)* sub_mat_size, (m_harmonic-1) * sub_mat_size)
-            L_mat = csdl.Variable(shape=shape, value=np.zeros(shape))
+    if type_ == "cos": # Include 0th harmonic -> M+1 total harmonics
+        num_harm = M + 1
+        shape = (num_harm * sub_mat_size, num_harm * sub_mat_size)
+        if do_csdl:
+            L_mat = csdl.Variable(shape=shape, value=0)
         else:
-            L_mat = np.zeros(((r_harmonic - 1)* sub_mat_size, (m_harmonic-1) * sub_mat_size))
-    else:
-        if isinstance(x, csdl.Variable):
-            shape = (r_harmonic * sub_mat_size, m_harmonic * sub_mat_size)
-            L_mat = csdl.Variable(shape=shape, value=np.zeros(shape))
+            L_mat = np.zeros(shape)
+    
+    else: # Exclude 0th harmonic -> M total harmonics
+        num_harm = M 
+        shape = (num_harm * sub_mat_size, num_harm * sub_mat_size)
+        if do_csdl:
+            L_mat = csdl.Variable(shape=shape, value=0)
         else:
-            L_mat = np.zeros((r_harmonic * sub_mat_size, m_harmonic * sub_mat_size))
+            L_mat = np.zeros(shape)
 
-    vec_ind_list = []
-    for r in range(r_harmonic):
-        if type == 'sin':
-            r += 1
-        if r > (r_harmonic-1):
-            break
-        for m in range(m_harmonic):
-            if type == 'sin':
-                m += 1
-            if m > (m_harmonic-1):
-                break
+    vec_ind = []
+    for a in range(num_harm):
+        for b in range(num_harm):
+            if type_ == "sin":
+                r = a + 1
+                m = b + 1
+            else:
+                r = a
+                m = b
+
             if r == 0:
-                # if m == 0:
-                #     multiplier = 1
-                # else:
                     multiplier = x**m
             else:
-                if type == 'sin':
-                    multiplier = x**(((m - r)**2)**0.5) - (-1)**min(r, m) * x**(m + r)
+                min_L = min(r, m)
+                if type_ == 'sin':
+                    multiplier = x**(abs(m - r)) - (-1)**min_L * x**(m + r)
                 else:
-                    multiplier = x**(((m - r)**2)**0.5) + (-1)**min(r, m) * x**(m + r)
-            if isinstance(x, csdl.Variable):
-                sub_mat = csdl.Variable(shape=(sub_mat_size, sub_mat_size), value=0)
+                    multiplier = x**(abs(m - r)) + (-1)**min_L * x**(m + r)
+
+            if do_csdl:
+                sub_mat = csdl.Variable(shape=(sub_mat_size, sub_mat_size), value=0.)
             else:
                 sub_mat = np.zeros((sub_mat_size, sub_mat_size))
-            for j in range(sub_mat_size):
-                for n  in range(sub_mat_size):
-                    if isinstance(x, csdl.Variable):
+            for c in range(sub_mat_size):
+                j = r +  (2 *c + 1)
+                for d in range(sub_mat_size):
+                    n = m +  (2 *d + 1)
+
+                    # Populate the sub-matrix
+                    if do_csdl:
                         sub_mat = sub_mat.set(
-                            slices=csdl.slice[j, n], 
-                            value=multiplier * compute_gamma(r, m, r + 2 * j + 1, m + 2 * n + 1),
+                            slices=csdl.slice[c, d],
+                            value=multiplier * compute_gamma(r, m, j, n)
                         )
                     else:
-                        sub_mat[j, n] = multiplier * compute_gamma(r, m, r + 2 * j + 1, m + 2 * n + 1)
-            #         print(r, m, r + 2 * j + 1, m + 2 * n + 1)
-            # print("submat", sub_mat)
+                        sub_mat[c, d] = multiplier * compute_gamma(r, m, j, n)
+                    
+                    # Append the harmonic (m) and shape function index (n)
+                    # for the loading coefficients
+                    if a == 0 and c == 0: # Only get the top row of the L matrix
+                        vec_ind.append((m, n))
+            
+            # Get the number of shape functions per harmonic
+            max_harmonic = max(r, m)
+            num_fun_per_harm = int(df.iloc[int(Q), max_harmonic+1])
+            
+            # zero out sub-mat indices if necessary (refer to data frame)
+            if num_fun_per_harm < sub_mat_size:
+                for sub_mat_i in range(sub_mat_size):
+                    for sub_mat_j in range(sub_mat_size):
+                        if sub_mat_i >= num_fun_per_harm or sub_mat_j >=num_fun_per_harm:
+                            if do_csdl:
+                                sub_mat = sub_mat.set(
+                                    slices=csdl.slice[sub_mat_i, sub_mat_j],
+                                    value=0.
+                                )
+                            else:
+                                sub_mat[sub_mat_i, sub_mat_j] = 0
 
-            if type == 'sin':
+            # print(sub_mat)
+
+            if type_ == 'sin':
                 row_ind_1 = sub_mat_size * (r-1)
                 row_ind_2 = row_ind_1 + sub_mat_size
                 col_ind_1 = sub_mat_size * (m-1)
                 col_ind_2 = col_ind_1 + sub_mat_size
-                if isinstance(x, csdl.Variable):
-                    L_mat = L_mat.set(
-                        slices=csdl.slice[row_ind_1:row_ind_2, col_ind_1:col_ind_2],
-                        value=sub_mat
-                    )
-                else:   
-                    L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
-    
+
             else:
                 row_ind_1 = sub_mat_size * r
                 row_ind_2 = row_ind_1 + sub_mat_size
                 col_ind_1 = sub_mat_size * m
                 col_ind_2 = col_ind_1 + sub_mat_size
-                if isinstance(x, csdl.Variable):
-                    L_mat = L_mat.set(
-                        slices=csdl.slice[row_ind_1:row_ind_2, col_ind_1:col_ind_2],
-                        value=sub_mat
-                    )
-                else:   
-                    L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
 
-
-
-            if type == 'sin':
-                if m == 1:
-                    for vec_ind in range(sub_mat_size):
-                        vec_ind_list.append((r, r + 2 * vec_ind + 1))
+            if do_csdl:
+                L_mat = L_mat.set(
+                    slices=csdl.slice[row_ind_1:row_ind_2, col_ind_1:col_ind_2],
+                    value=sub_mat,
+                )
             else:
-                if m == 0:
-                    for vec_ind in range(sub_mat_size):
-                        vec_ind_list.append((r, r + 2 * vec_ind + 1))
-                        # vec_ind.append((r, r + 1))
-                        # vec_ind.append((r, r + 3))
+                L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
+    
+    # print(L_mat)
 
-            # print("\n")
+    return L_mat, vec_ind                    
 
-            # L_mat[row_ind_1:row_ind_2, col_ind_1:col_ind_2] = sub_mat
-
-    return L_mat, vec_ind_list
-
-def compute_h(j, r):
-    num_1 = double_factorial(j + r - 1)
-    if j - r < 0:
-        num_2 = 1
-    else:
-        num_2 = double_factorial(j - r - 1)
-    den_1 = double_factorial(j + r)
-    if j - r < 0:
-        den_2 = 1
-    else:
-        den_2 = double_factorial(j - r)
-
-    return (num_1 * num_2) / (den_1 * den_2)
-
-def compute_phi(r, j, radius, Q, print_var=False):
+def compute_phi(r, j, radius, Q):
     term_1 = ((2 * j + 1) * compute_h(j, r))**0.5
-    if print_var:
-        pass
     summation = csdl.Variable(shape=radius.shape, value=0)
     for q in range(r, j, 2):
-        if (q > Q) or (q > (j - 1)):
+        # if (q > Q) or (q > (j - 1)):
+        if (q > (j - 1)):
             break
         num_1 = (-1)**((q - r) / 2)
         num_2 = double_factorial(j + q)
         den_1 = double_factorial(q - r)
         den_2 = double_factorial(q + r)
         den_3 = double_factorial(j - q - 1)
-        if print_var:
-            pass
-        summation = summation + radius**q * num_1 * num_2 / (den_1 *  den_2 * den_3)
+        summation = summation + radius**q * num_1 * num_2 / (den_1 * den_2 * den_3)
     
     return term_1 * summation
 
@@ -205,8 +382,8 @@ def solve_for_steady_state_inflow(
     norm_radius_vec_exp,
     disk_inclination_angle,
     tip_loss,
-    Q : int = 3,
-    M : int = 3,
+    Q : int = 4,
+    M : int = 4,
     initial_value: csdl.Variable = None
 ) -> RotorAnalysisOutputs:
     """Solve the Peters--He [1] dynamic inflow model for steady state.
@@ -280,11 +457,8 @@ def solve_for_steady_state_inflow(
     Ma = Vr / a
     
     # setting up the dimensions of the state vector
-    harmonics_r = M
-    harmonics_m = M
-
-    _, vec_ind_sin = compute_L(Q, harmonics_r, harmonics_m, type="sin")
-    _, vec_ind_cos = compute_L(Q, harmonics_m, harmonics_m, type="cos")
+    _, vec_ind_sin = compute_L(Q, M, type_="sin")
+    _, vec_ind_cos = compute_L(Q, M, type_="cos")
 
     ns_sin = len(vec_ind_sin)
     ns_cos = len(vec_ind_cos)
@@ -292,7 +466,10 @@ def solve_for_steady_state_inflow(
     # setting variables to store quantities of interest
     states_container = csdl.Variable(shape=(num_nodes, ns_cos + ns_sin), value=0)
     ux_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    alpha_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dT_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    dD_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    dL_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dQ_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     thrust_container = csdl.Variable(shape=(num_nodes, ), value=0)
     power_container = csdl.Variable(shape=(num_nodes, ), value=0)
@@ -303,10 +480,12 @@ def solve_for_steady_state_inflow(
     C_Q_containter = csdl.Variable(shape=(num_nodes, ), value=0)
     eta_container = csdl.Variable(shape=(num_nodes, ), value=0)
     FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
+    inflow_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
+    phi_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
-    for i in csdl.frange(num_nodes):
+    for i in range(num_nodes):
         # Initialize implicit variables (state vector)
-        state_vec = csdl.ImplicitVariable(shape=((ns_cos + ns_sin, )), value=-0)
+        state_vec = csdl.ImplicitVariable(shape=((ns_cos + ns_sin, )), value=0)
         inflow = csdl.Variable(shape=(num_radial, num_azimuthal), value=0)
 
         for nsc in range(ns_cos):
@@ -327,7 +506,6 @@ def solve_for_steady_state_inflow(
             inflow = inflow + phi_vec * state_vec[nss+ns_cos] * sin_psi
 
         ux = (inflow + mu_z[i]) * omega[i] * radius
-        
         phi = csdl.arctan((ux) / Vt[i, :, :])
         
         # Compute sectional Cl, Cd
@@ -350,10 +528,11 @@ def solve_for_steady_state_inflow(
         F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
 
         F_initial = F_tip * F_hub 
-        if tip_loss:
-            F = 1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))
-        else:
-            F = 1
+        # if tip_loss:
+        #     F = (1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))) #* 0.6
+        # else:
+        #     F = 1
+        F = F_initial
 
         # Compute thrust (and torque)
         # sectional (dT)
@@ -375,7 +554,7 @@ def solve_for_steady_state_inflow(
             n = vec_ind_cos[nsc][1] # shape function index
 
             # compute shape function 
-            phi_cos = compute_phi(m, n, radius_vec[i, :, :]/radius, Q, print_var=False)
+            phi_cos = compute_phi(m, n, radius_vec[i, :, :]/radius, Q)
             L_cos = dT * phi_cos
 
             # compute cosine harmonic and apply to loading
@@ -401,7 +580,7 @@ def solve_for_steady_state_inflow(
             n = vec_ind_sin[nss][1] # shape function index
 
             # compute shape function 
-            phi_sin = compute_phi(m, n, radius_vec[i, :, :]/radius, Q, print_var=False)
+            phi_sin = compute_phi(m, n, radius_vec[i, :, :]/radius, Q)
             L_sin = dT * phi_sin
 
             # compute sine harmonic and apply to loading
@@ -421,7 +600,7 @@ def solve_for_steady_state_inflow(
 
         # compute tangential inflow via Newton iteration
         lam_i = csdl.ImplicitVariable(shape=(1, ), value=0.1)
-        lam_i_res = lam_i - mu[i] * csdl.tan(disk_inclination_angle[i]) - C_T / (2 * (mu[i]**2 + lam_i**2)**0.5)
+        lam_i_res = lam_i - mu[i] * csdl.tan(-disk_inclination_angle[i]) - C_T / (2 * (mu[i]**2 + lam_i**2)**0.5)
         d_lam0res_d_lam0 = 1 + C_T / 2 * (mu[i]**2 + lam_i**2)**(-3/2) * lam_i
 
         lam_i_solver = csdl.nonlinear_solvers.GaussSeidel(print_status=False)
@@ -447,8 +626,9 @@ def solve_for_steady_state_inflow(
         V_eff = (mu[i]**2 + lam * (lam + lam_m)) / (mu[i] ** 2 + lam**2) ** 0.5
         V_eff_t = (mu[i] ** 2 + lam**2) ** 0.5
 
-        L_cos, vec_ind_cos = compute_L(Q, harmonics_r, harmonics_m, x, type='cos') 
-        L_sin, vec_ind_sin = compute_L(Q, harmonics_r, harmonics_m, x, type='sin') 
+        L_cos, vec_ind_cos = compute_L(Q, M, x=x, type_='cos') 
+        L_sin, vec_ind_sin = compute_L(Q, M, x=x, type_='sin') 
+        # exit()
 
         # assemble diagonal V matrices
         V_cos = csdl.Variable(shape=(ns_cos, ns_cos), value=0)
@@ -480,20 +660,29 @@ def solve_for_steady_state_inflow(
 
         if initial_value is None:
             # basic fixed point iteration for state update
-            # state_update = 0.1 * (csdl.matvec(L_block, tau) - state_vec)
-            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=1000, elementwise_states=False)
-            solver.add_state(state_vec, residual, state_update=state_vec + 0.1 * residual)
+            # state_update = 0.05 * (csdl.matvec(L_block, tau) - state_vec)
+            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100, elementwise_states=False)
+            # solver.add_state(state_vec, residual, state_update=state_update)
+            solver.add_state(state_vec, residual, state_update=state_vec + 0.05 * residual)
+        else:
+            solver = csdl.nonlinear_solvers.Newton(max_iter=40, elementwise_states=False)
+            solver.add_state(state_vec, residual, initial_value=initial_value[i, :])
             # solver.add_state(state_vec, residual, state_update=state_vec + state_update)
 
         solver.run()
         
         dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr  * F
         dQ = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr * F
+        dL = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cl * dr
         thrust = integrate_quantity(dT, scheme=integration_scheme)
         torque = integrate_quantity(dQ, scheme=integration_scheme)
         
         # compute thrust/torque/power coefficient
         CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**4
+        area = np.pi * radius**2
+        V_tip = rpm[i] / 60 * 2 * np.pi * radius
+        C_T_new = thrust / rho[i, 0, 0]/ area / V_tip**2
+
         CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**5
         CP = 2 * np.pi * CQ
 
@@ -506,13 +695,18 @@ def solve_for_steady_state_inflow(
         FoM = CT * (CT/2)**0.5 / CP
 
         # Storing data
+        inflow_container = inflow_container.set(csdl.slice[i, :, :], inflow)# + mu_z[i])
         ux_container = ux_container.set(csdl.slice[i, :, :], ux)
+        alpha_container = alpha_container.set(csdl.slice[i, :, :], alpha * 180 /np.pi)
         dT_container = dT_container.set(csdl.slice[i, :, :], dT)
+        dL_container = dT_container.set(csdl.slice[i, :, :], dL)
         dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
+        dD_container = dD_container.set(csdl.slice[i, :, :], dQ / radius_vec[i, :, :])
+        phi_container = phi_container.set(csdl.slice[i, :, :], phi)
         thrust_container = thrust_container.set(csdl.slice[i], thrust)
         torque_container = torque_container.set(csdl.slice[i], torque)
         power_container = power_container.set(csdl.slice[i], power)
-        C_T_containter = C_T_containter.set(csdl.slice[i], CT)
+        C_T_containter = C_T_containter.set(csdl.slice[i], C_T_new)
         C_P_containter = C_P_containter.set(csdl.slice[i], CP)
         C_Q_containter = C_Q_containter.set(csdl.slice[i], CQ)
         eta_container = eta_container.set(csdl.slice[i], eta)
@@ -524,6 +718,7 @@ def solve_for_steady_state_inflow(
 
     outputs = RotorAnalysisOutputs(
         axial_induced_velocity=ux_container,
+        sectional_drag=dD_container,
         tangential_induced_velocity=None,
         sectional_thrust=dT_container,
         sectional_torque=dQ_container,
@@ -542,6 +737,11 @@ def solve_for_steady_state_inflow(
     outputs.Cd = Cd
     outputs.ux = ux
     outputs.state_vec = state_vec
+    outputs.inflow = inflow_container
+    outputs.sectional_lift = dL_container
+    outputs.states = states_container
+    outputs.alpha = alpha_container
+    outputs.sectional_inflow_angle = phi_container
 
 
     return outputs

@@ -102,10 +102,9 @@ def compute_local_frame_velocities(
             csdl.arcsin((mu_z[i]) * angular_speed[i, 0, 0] * radius[i, 0, 0]  / (V_inf + 1e-5))
         )
 
-
-    V_tangential = local_frame_velocity[:, :, :, 1] * csdl.sin(azimuth_angle) - \
-                   local_frame_velocity[:, :, :, 2] * csdl.cos(azimuth_angle) + \
-                    radius_vec * angular_speed
+    V_tangential = radius_vec * angular_speed + \
+        local_frame_velocity[:, :, :, 1] * csdl.sin(azimuth_angle) + \
+                   local_frame_velocity[:, :, :, 2] * csdl.cos(azimuth_angle) 
     
 
     local_frame_velocity = LocalFrameVelocities(

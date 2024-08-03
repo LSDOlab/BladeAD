@@ -34,6 +34,13 @@ def preprocess_input_variables(
     origin_velocity: csdl.Variable,
     atmos_states,
     num_blades: int,
+    theta_0=0,
+    theta_1_c=0,
+    theta_1_s=0,
+    xi_0=0,
+    xi_1_c=0,
+    xi_1_s=0,
+
 ) -> PreProcessOutputs:
     # extract shape
     num_nodes = shape[0]
@@ -125,6 +132,13 @@ def preprocess_input_variables(
         )
     )
 
+    # Blade lag
+    blade_lag =  xi_0 + xi_1_c * csdl.cos(theta_exp) + xi_1_s * csdl.sin(theta_exp)
+    theta_exp = theta_exp + blade_lag
+
+    # Blade pitch
+    blade_pitch = theta_0 + theta_1_c * csdl.cos(theta_exp) + theta_1_s * csdl.sin(theta_exp)
+
     # expand chord and twist profile
     if chord_profile.shape == (num_nodes, num_radial):
         chord_profile_exp = csdl.expand(chord_profile, out_shape=shape, action="ij->ijk")
@@ -136,9 +150,12 @@ def preprocess_input_variables(
     else:
         twist_profile_exp = csdl.expand(twist_profile, out_shape=shape, action="j->ijk")
 
+    twist_profile_exp = twist_profile_exp + blade_pitch
+
     # compute sectional blade solidity
     sigma = num_blades * chord_profile_exp / 2.0 / np.pi / radius_vec_exp
 
+    # store variables
     pre_process_outputs = PreProcessOutputs(
         thrust_vector_exp=thrust_vector_exp,
         thrust_origin_exp=thrust_origin_exp,
