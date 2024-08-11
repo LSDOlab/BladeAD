@@ -37,6 +37,8 @@ def compute_local_frame_velocities(
     mu = csdl.Variable(shape=(num_nodes, ), value=np.zeros((num_nodes, )))
     disk_incline_angle = csdl.Variable(shape=(num_nodes, ), value=np.zeros((num_nodes, )))
 
+    if radius.shape != shape:
+        radius = radius.expand(shape, action='i->ijk')
 
     for i in csdl.frange(num_nodes):
         normal_vec = thrust_vector[i, :]

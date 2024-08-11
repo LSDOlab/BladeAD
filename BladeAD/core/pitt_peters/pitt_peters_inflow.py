@@ -51,6 +51,7 @@ def solve_for_steady_state_inflow(
 
     # setting variables to store quantities of interest
     states_container = csdl.Variable(shape=(num_nodes, 3), value=0)
+    lambda_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     ux_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dT_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dQ_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
@@ -103,7 +104,8 @@ def solve_for_steady_state_inflow(
 
         F_initial = F_tip * F_hub
         if tip_loss:
-            F = 1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))
+            # F = 1 + (F_initial - 1) * sigmoid(disk_inclination_angle[i], np.deg2rad(12))
+            F = F_initial
         else:
             F = 1
 
@@ -120,7 +122,7 @@ def solve_for_steady_state_inflow(
         Ct = Cl * csdl.sin(phi) + Cd * csdl.cos(phi)
         dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
         dMx = radius_vec[i, :, :] * csdl.sin(psi[i, :, :]) * dT
-        dMy = radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
+        dMy = -radius_vec[i, :, :] * csdl.cos(psi[i, :, :]) * dT
 
         thrust = integrate_quantity(dT, integration_scheme)
         Mx = integrate_quantity(dMx, integration_scheme)
@@ -137,7 +139,7 @@ def solve_for_steady_state_inflow(
         lam_i_solver.add_state(lam_i, lam_i_res)
         lam_i_solver.run()
 
-        lam = mu_z[i] + lam_i
+        lam = mu_z[i] + csdl.average(lam_i)
 
         # Compute wake skew and effective velocities
         chi = csdl.arctan((mu[i] +1e-5) / lam)
@@ -154,7 +156,7 @@ def solve_for_steady_state_inflow(
         L_mat = L_mat.set(csdl.slice[2, 2], 4 / (1 + csdl.cos(chi)))
 
         L_mat_new = L_mat 
-        L_mat_new = L_mat_new.set(csdl.slice[:, 0], L_mat_new[:, 0]/ V_eff)
+        L_mat_new = L_mat_new.set(csdl.slice[:, 0], L_mat_new[:, 0]/ V_eff*2) 
         L_mat_new = L_mat_new.set(csdl.slice[:, 1], L_mat_new[:, 1]/ V_eff_2)
         L_mat_new = L_mat_new.set(csdl.slice[:, 2], L_mat_new[:, 2]/ V_eff_2)
 
@@ -186,15 +188,22 @@ def solve_for_steady_state_inflow(
         CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**5
         CP = 2 * np.pi * CQ
 
+        CT_H = CT * 4 / np.pi**3
+        CQ_H = CQ * 8 / np.pi**3
+        print(CT_H.value)
+        print(CQ_H.value)
+
         power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius[i, 0, 0])**5
 
 
         # Compute advance ratio and efficiency and FOM
         J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius[i, 0, 0])
         eta = CT * J / CP
-        FoM = CT * (CT/2)**0.5 / CP
+        # FoM = CT * (CT/2)**0.5 / CP
+        FoM = CT_H * (CT_H/2)**0.5 / CQ_H
 
         # Storing data
+        lambda_container = lambda_container.set(csdl.slice[i, :, :], lam_exp_i)
         ux_container = ux_container.set(csdl.slice[i, :, :], ux)
         dT_container = dT_container.set(csdl.slice[i, :, :], dT)
         dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
@@ -226,7 +235,7 @@ def solve_for_steady_state_inflow(
         power_coefficient=C_P_containter,
         residual=residual_container,
         )
-
+    outputs.normalized_axial_induced_flow = lambda_container
     # outputs.Cl = Cl
     # outputs.Cd = Cd
 

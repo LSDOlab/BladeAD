@@ -60,6 +60,37 @@ class PittPetersModel:
         twist_profile = inputs.mesh_parameters.twist_profile
         rpm = inputs.rpm
 
+        if mesh_velocity.shape[0] != num_nodes:
+            raise Exception(f"Inconsisten shapes. 'num_nodes' is {self.num_nodes} but 'mesh_velocity' has shape {mesh_velocity.shape}. First dimension (num_nodes) needs to match")
+
+        if isinstance(chord_profile, list):
+            chord_profile = chord_profile[0]
+
+        if isinstance(twist_profile, list):
+            twist_profile = twist_profile[0]
+
+        if isinstance(radius, list):
+            radius = radius[0]
+
+        if isinstance(norm_hub_radius, list):
+            norm_hub_radius = norm_hub_radius[0]
+
+        if isinstance(thrust_vector, list):
+            thrust_vector_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
+            for i in range(self.num_nodes):
+                thrust_vector_mat = thrust_vector_mat.set(
+                    csdl.slice[i, :], value=thrust_vector[i]
+                )
+            thrust_vector = thrust_vector_mat
+
+        if isinstance(thrust_origin, list):
+            thrust_origin_mat = csdl.Variable(shape=mesh_velocity.shape, value=0)
+            for i in range(self.num_nodes):
+                thrust_origin_mat = thrust_origin_mat.set(
+                    csdl.slice[i, :], value=thrust_origin[i]
+                )
+            thrust_origin = thrust_origin_mat
+
         radius = csdl.expand(radius, shape, action='i->ijk')
 
         pre_process_outputs = preprocess_input_variables(

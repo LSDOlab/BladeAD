@@ -154,7 +154,7 @@ def make_polarplot(
         else:
             axs.flatten()[i].axis('off')
 
-    fig.tight_layout()
+    # fig.tight_layout()
     plt.tight_layout()
     plt.show()
 
