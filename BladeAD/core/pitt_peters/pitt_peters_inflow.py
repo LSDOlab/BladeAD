@@ -190,8 +190,6 @@ def solve_for_steady_state_inflow(
 
         CT_H = CT * 4 / np.pi**3
         CQ_H = CQ * 8 / np.pi**3
-        print(CT_H.value)
-        print(CQ_H.value)
 
         power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius[i, 0, 0])**5
 

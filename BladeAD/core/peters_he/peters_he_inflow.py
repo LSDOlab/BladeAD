@@ -688,13 +688,17 @@ def solve_for_steady_state_inflow(
         CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius)**5
         CP = 2 * np.pi * CQ
 
+        CT_H = CT * 4 / np.pi**3
+        CQ_H = CQ * 8 / np.pi**3
+
         power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius)**5
 
 
         # Compute advance ratio and efficiency and FOM
         J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius)
         eta = CT * J / CP
-        FoM = CT * (CT/2)**0.5 / CP
+        # FoM = CT * (CT/2)**0.5 / CP
+        FoM = CT_H * (CT_H/2)**0.5 / CQ_H
 
         # Storing data
         inflow_container = inflow_container.set(csdl.slice[i, :, :], inflow)# + mu_z[i])
@@ -708,7 +712,7 @@ def solve_for_steady_state_inflow(
         thrust_container = thrust_container.set(csdl.slice[i], thrust)
         torque_container = torque_container.set(csdl.slice[i], torque)
         power_container = power_container.set(csdl.slice[i], power)
-        C_T_containter = C_T_containter.set(csdl.slice[i], C_T_new)
+        C_T_containter = C_T_containter.set(csdl.slice[i], CT)
         C_P_containter = C_P_containter.set(csdl.slice[i], CP)
         C_Q_containter = C_Q_containter.set(csdl.slice[i], CQ)
         eta_container = eta_container.set(csdl.slice[i], eta)
