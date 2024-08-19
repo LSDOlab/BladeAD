@@ -3,11 +3,11 @@ from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_loca
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
 from BladeAD.core.peters_he.peters_he_inflow import solve_for_steady_state_inflow
 import csdl_alpha as csdl
-
-
+ 
+ 
 class PetersHeModel:
     def __init__(
-        self, 
+        self,
         num_nodes: int,
         airfoil_model,
         tip_loss: bool=True,
@@ -20,31 +20,34 @@ class PetersHeModel:
         csdl.check_parameter(Q, "Q", types=int)
         csdl.check_parameter(M, "M", types=int)
         csdl.check_parameter(tip_loss, "tip_loss", types=bool)
-
+ 
         if num_nodes < 1:
             raise ValueError("num_nodes must be an integer greater or equal to 1")
-
-        # if Q > 3:
-        #     raise NotImplementedError("Q greater than 3 has not been tested yet and will likely not converge")
-
+ 
+        if M > Q:
+            raise ValueError(f"M ({M}) (highest harmonic number) must not be greater than Q ({Q}) (highest power of r/R)")
+ 
+        # if Q > 5:
+        #     raise NotImplementedError("Q greater than 5 has significant computational cost and is not support in this version.")
+ 
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
         self.Q = Q
         self.M = M
         self.tip_loss = tip_loss
-
-    
+ 
+   
     def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
         if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
             raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
-
+ 
         num_azimuthal = inputs.mesh_parameters.num_azimuthal
         num_blades = inputs.mesh_parameters.num_blades
         norm_hub_radius = inputs.mesh_parameters.norm_hub_radius
-
+ 
         shape = (num_nodes, num_radial, num_azimuthal)
         thrust_vector = inputs.mesh_parameters.thrust_vector
         thrust_origin = inputs.mesh_parameters.thrust_origin
@@ -53,6 +56,7 @@ class PetersHeModel:
         chord_profile = inputs.mesh_parameters.chord_profile
         twist_profile = inputs.mesh_parameters.twist_profile
         rpm = inputs.rpm
+ 
 
         pre_process_outputs = preprocess_input_variables(
             shape=shape,
@@ -66,8 +70,14 @@ class PetersHeModel:
             rpm=rpm,
             num_blades=num_blades,
             atmos_states=inputs.atmos_states,
+            theta_0=inputs.theta_0,
+            theta_1_c=inputs.theta_1_c,
+            theta_1_s=inputs.theta_1_s,
+            xi_0=inputs.xi_0,
+            xi_1_c=inputs.xi_1_c,
+            xi_1_s=inputs.xi_1_s,
         )
-
+ 
         local_frame_velocities = compute_local_frame_velocities(
             shape=shape,
             thrust_vector=pre_process_outputs.thrust_vector_exp,
@@ -77,7 +87,7 @@ class PetersHeModel:
             radius_vec=pre_process_outputs.radius_vector_exp,
             radius=radius,
         )
-
+ 
         dynamic_inflow_outputs_1 = solve_for_steady_state_inflow(
             shape=shape,
             psi=pre_process_outputs.azimuth_angle_exp,
@@ -86,7 +96,7 @@ class PetersHeModel:
             mu_z=local_frame_velocities.mu_z,
             mu=local_frame_velocities.mu,
             tangential_velocity=local_frame_velocities.tangential_velocity,
-            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            frame_velocity=local_frame_velocities.local_frame_velocity,
             radius_vec=pre_process_outputs.radius_vector_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
@@ -106,7 +116,7 @@ class PetersHeModel:
             M=self.M,
             Q=self.Q,
         )
-
+ 
         dynamic_inflow_outputs_2 = solve_for_steady_state_inflow(
             shape=shape,
             psi=pre_process_outputs.azimuth_angle_exp,
@@ -115,7 +125,7 @@ class PetersHeModel:
             mu_z=local_frame_velocities.mu_z,
             mu=local_frame_velocities.mu,
             tangential_velocity=local_frame_velocities.tangential_velocity,
-            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            frame_velocity=local_frame_velocities.local_frame_velocity,
             radius_vec=pre_process_outputs.radius_vector_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
@@ -136,5 +146,5 @@ class PetersHeModel:
             Q=self.Q,
             initial_value=dynamic_inflow_outputs_1.states
         )
-
+ 
         return dynamic_inflow_outputs_2
