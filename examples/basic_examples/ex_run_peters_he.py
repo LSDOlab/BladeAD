@@ -116,6 +116,18 @@ airfoil_model = CompositeAirfoilModel(
     airfoil_models=[naca_4412_2d_model, mh_117_2d_model, clark_y_2d_model],
 )
 
+naca_4412_polar = ZeroDAirfoilPolarParameters(
+    alpha_stall_minus=-14, 
+    alpha_stall_plus=16,
+    Cl_stall_minus=-1.15,
+    Cl_stall_plus=1.7,
+    Cd_stall_minus=0.028,
+    Cd_stall_plus=0.041,
+    Cd_0=0.008,
+    Cl_0=0.5,
+    Cl_alpha=6.13883351925882,
+)
+naca_4412_zero_d_model = ZeroDAirfoilModel(naca_4412_polar)
 
 bem_mesh_parameters = RotorMeshParameters(
     thrust_vector=thrust_vector,
@@ -128,22 +140,22 @@ bem_mesh_parameters = RotorMeshParameters(
     num_blades=num_blades,
 )
 
-bem_inputs = RotorAnalysisInputs(
+inputs = RotorAnalysisInputs(
     rpm=rpm,
     mesh_parameters=bem_mesh_parameters,
     mesh_velocity=mesh_velocity,
 )
 
-bem_model = PetersHeModel(
+peters_he_model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=mh_117_2d_model, #airfoil_model_1,
+    airfoil_model=naca_4412_2d_model, #naca_4412_zero_d_model, #mh_117_2d_model, #airfoil_model_1,
     integration_scheme='trapezoidal',
 )
 
 import time 
 
 t1 = time.time()
-outputs = bem_model.evaluate(inputs=bem_inputs)
+outputs = peters_he_model.evaluate(inputs=inputs)
 
 recorder.execute()
 

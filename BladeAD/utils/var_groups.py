@@ -3,7 +3,8 @@ import csdl_alpha as csdl
 from dataclasses import dataclass
 from typing import Union
 import numpy as np
-from typing import Optional, Union
+from typing import Optional
+
 
 @dataclass
 class RotorMeshParameters(csdl.VariableGroup):
@@ -25,6 +26,23 @@ class AtmosStates(csdl.VariableGroup):
     temperature : Union[float, int, csdl.Variable] =  288.16
     pressure : Union[float, int, csdl.Variable] = 101325
     dynamic_viscosity : Union[float, int, csdl.Variable] = 1.735e-5
+
+
+
+@dataclass
+class AircaftStates(csdl.VariableGroup):
+    u : Union[float, int, csdl.Variable, np.ndarray] = 0
+    v : Union[float, int, csdl.Variable, np.ndarray] = 0
+    w : Union[float, int, csdl.Variable, np.ndarray] = 0
+    p : Union[float, int, csdl.Variable, np.ndarray] = 0
+    q : Union[float, int, csdl.Variable, np.ndarray] = 0
+    r : Union[float, int, csdl.Variable, np.ndarray] = 0
+    phi : Union[float, int, csdl.Variable, np.ndarray] = 0
+    theta : Union[float, int, csdl.Variable, np.ndarray] = 0
+    psi : Union[float, int, csdl.Variable, np.ndarray] = 0
+    x : Union[float, int, csdl.Variable, np.ndarray] = 0
+    y : Union[float, int, csdl.Variable, np.ndarray] = 0
+    z : Union[float, int, csdl.Variable, np.ndarray] = 0
 
 
 @dataclass

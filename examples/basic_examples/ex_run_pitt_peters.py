@@ -30,19 +30,20 @@ num_blades = 2
 # mesh_velocity = csdl.Variable(value=mesh_vel_np)
 # rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
-thrust_vector=csdl.Variable(value=np.array([1., 0, 0]))
+thrust_vector=csdl.Variable(value=np.array([0., 0, -1]))
 thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
-# chord_profile=csdl.Variable(value=np.linspace(0.25, 0.05, num_radial))
-# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(70), np.deg2rad(30), num_radial))
-# radius = csdl.Variable(value=1.5)
-chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
-twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
-radius = csdl.Variable(value=0.3048001 / 2)
+chord_profile=csdl.Variable(value=np.linspace(0.25, 0.05, num_radial))
+twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(70), np.deg2rad(30), num_radial))
+radius = csdl.Variable(value=1.5)
+# chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
+# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
+# radius = csdl.Variable(value=0.3048001 / 2)
 mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 0] = np.linspace(0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
+mesh_vel_np[:, 0] = np.linspace(0, 40.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
 # mesh_vel_np[:, 2] = -10.
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
-rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
+rpm = csdl.Variable(value=1200 * np.ones((num_nodes,)))
+# rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
 polar_parameters_1 = ZeroDAirfoilPolarParameters(
     alpha_stall_minus=-10.,
@@ -99,6 +100,19 @@ airfoil_model = CompositeAirfoilModel(
 )
 
 
+naca_4412_polar = ZeroDAirfoilPolarParameters(
+    alpha_stall_minus=-13, 
+    alpha_stall_plus=15,
+    Cl_stall_minus=-1.,
+    Cl_stall_plus=1.5,
+    Cd_stall_minus=0.03,
+    Cd_stall_plus=0.041,
+    Cd_0=0.008,
+    Cl_0=0.5,
+    Cl_alpha=6.14,
+)
+naca_4412_zero_d_model = ZeroDAirfoilModel(naca_4412_polar)
+
 # airfoil_model = NACA4412MLAirfoilModel()
 
 
@@ -121,7 +135,7 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PittPetersModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model,#NACA4412MLAirfoilModel(),
+    airfoil_model=naca_4412_zero_d_model, #NACA4412MLAirfoilModel(), # #airfoil_model,#
     integration_scheme='trapezoidal',
 )
 
@@ -134,7 +148,7 @@ Q = csdl.average(outputs.total_torque)
 Q.set_as_objective(scaler=10)
 
 print("thrust BEM", T.value)
-print("torque BEM", Q.value)
+print("torque BEM", outputs.total_torque.value)
 jax_sim = csdl.experimental.JaxSimulator(
     recorder=recorder, gpu=True,
     additional_inputs=[rpm],

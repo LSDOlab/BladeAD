@@ -3,11 +3,11 @@ from BladeAD.core.preprocessing.compute_local_frame_velocity import compute_loca
 from BladeAD.core.preprocessing.preprocess_variables import preprocess_input_variables
 from BladeAD.core.peters_he.peters_he_inflow import solve_for_steady_state_inflow
 import csdl_alpha as csdl
-
-
+ 
+ 
 class PetersHeModel:
     def __init__(
-        self, 
+        self,
         num_nodes: int,
         airfoil_model,
         tip_loss: bool=True,
@@ -20,9 +20,16 @@ class PetersHeModel:
         csdl.check_parameter(Q, "Q", types=int)
         csdl.check_parameter(M, "M", types=int)
         csdl.check_parameter(tip_loss, "tip_loss", types=bool)
-
+ 
         if num_nodes < 1:
             raise ValueError("num_nodes must be an integer greater or equal to 1")
+ 
+        if M > Q:
+            raise ValueError(f"M ({M}) (highest harmonic number) must not be greater than Q ({Q}) (highest power of r/R)")
+ 
+        # if Q > 5:
+        #     raise NotImplementedError("Q greater than 5 has significant computational cost and is not support in this version.")
+ 
 
         if M > Q:
             raise ValueError(f"M ({M}) (highest harmonic number) must not be greater than Q ({Q}) (highest power of r/R)")
@@ -36,18 +43,18 @@ class PetersHeModel:
         self.Q = Q
         self.M = M
         self.tip_loss = tip_loss
-
-    
+ 
+   
     def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
         if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
             raise ValueError("'num_radial' must be odd if integration scheme is Simpson.")
-
+ 
         num_azimuthal = inputs.mesh_parameters.num_azimuthal
         num_blades = inputs.mesh_parameters.num_blades
         norm_hub_radius = inputs.mesh_parameters.norm_hub_radius
-
+ 
         shape = (num_nodes, num_radial, num_azimuthal)
         thrust_vector = inputs.mesh_parameters.thrust_vector
         thrust_origin = inputs.mesh_parameters.thrust_origin
@@ -78,7 +85,7 @@ class PetersHeModel:
             xi_1_c=inputs.xi_1_c,
             xi_1_s=inputs.xi_1_s,
         )
-
+ 
         local_frame_velocities = compute_local_frame_velocities(
             shape=shape,
             thrust_vector=pre_process_outputs.thrust_vector_exp,
@@ -88,6 +95,7 @@ class PetersHeModel:
             radius_vec=pre_process_outputs.radius_vector_exp,
             radius=radius,
         )
+ 
 
         dynamic_inflow_outputs_1 = solve_for_steady_state_inflow(
             shape=shape,
@@ -97,7 +105,7 @@ class PetersHeModel:
             mu_z=local_frame_velocities.mu_z,
             mu=local_frame_velocities.mu,
             tangential_velocity=local_frame_velocities.tangential_velocity,
-            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            frame_velocity=local_frame_velocities.local_frame_velocity,
             radius_vec=pre_process_outputs.radius_vector_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
@@ -117,7 +125,7 @@ class PetersHeModel:
             M=self.M,
             Q=self.Q,
         )
-
+ 
         dynamic_inflow_outputs_2 = solve_for_steady_state_inflow(
             shape=shape,
             psi=pre_process_outputs.azimuth_angle_exp,
@@ -126,7 +134,7 @@ class PetersHeModel:
             mu_z=local_frame_velocities.mu_z,
             mu=local_frame_velocities.mu,
             tangential_velocity=local_frame_velocities.tangential_velocity,
-            frame_velocity=local_frame_velocities.local_frame_velocity, 
+            frame_velocity=local_frame_velocities.local_frame_velocity,
             radius_vec=pre_process_outputs.radius_vector_exp,
             chord_profile=pre_process_outputs.chord_profile_exp,
             twist_profile=pre_process_outputs.twist_profile_exp,
@@ -147,5 +155,5 @@ class PetersHeModel:
             Q=self.Q,
             initial_value=dynamic_inflow_outputs_1.states
         )
-
+ 
         return dynamic_inflow_outputs_2
