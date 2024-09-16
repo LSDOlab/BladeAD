@@ -13,11 +13,15 @@ class PittPetersModel:
         num_nodes: int,
         airfoil_model,
         tip_loss: bool=True,
-        integration_scheme: str = "trapezoidal"
+        integration_scheme: str = "trapezoidal",
+        nl_solver_mode : str = "standard",
+        use_frange_in_nl_solver : bool = False,
     ) -> None:
         csdl.check_parameter(num_nodes, "num_nodes", types=int)
         csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))
+        csdl.check_parameter(nl_solver_mode, "nl_solver_mode", values=("standard", "vectorized"))
         csdl.check_parameter(tip_loss, "tip_loss", types=bool)
+        csdl.check_parameter(use_frange_in_nl_solver, "use_frange_in_nl_solver", types=bool)
         
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
@@ -26,6 +30,8 @@ class PittPetersModel:
             self.tip_loss = 1
         else:
             self.tip_loss = 0
+        self.nl_solver_mode = nl_solver_mode
+        self.use_frange_in_nl_solver = use_frange_in_nl_solver
 
 
     def evaluate(self, inputs: RotorAnalysisInputs, ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])) -> RotorAnalysisOutputs:
@@ -151,6 +157,8 @@ class PittPetersModel:
             hub_radius=pre_process_outputs.hub_radius,
             integration_scheme=self.integration_scheme,
             tip_loss=self.tip_loss,
+            mode=self.nl_solver_mode,
+            use_frange_in_nl_solver=self.use_frange_in_nl_solver,
         )
 
     
