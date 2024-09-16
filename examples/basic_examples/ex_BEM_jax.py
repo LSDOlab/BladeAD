@@ -9,15 +9,16 @@ from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
-
+from jax._src import config
+config.update("jax_platforms", "cpu")
 
 recorder = csdl.Recorder(inline=True, debug=False, expand_ops=False)
 recorder.start()
 
-vectorized = False
-num_nodes = 1
-num_radial = 100
-num_azimuthal = 100
+vectorized = True
+num_nodes = 10
+num_radial = 30
+num_azimuthal = 30
 
 num_blades = 2
 num_cp = 5
@@ -86,7 +87,7 @@ airfoil_model_1 = ZeroDAirfoilModel(
 # )
 
 
-# ml_airfoil_model = NACA4412MLAirfoilModel()
+ml_airfoil_model = NACA4412MLAirfoilModel()
 
 # airfoil_model = CompositeAirfoilModel(
 #     sections=[0., 0.5, 0.7, 1.],
@@ -129,9 +130,9 @@ if vectorized:
         mesh_velocity=mesh_velocity,
     )
 
-    bem_model = BEMModel(
+    bem_model = PittPetersModel(
         num_nodes=num_nodes,
-        airfoil_model=mh_117_2d_model, #airfoil_model_1,
+        airfoil_model=ml_airfoil_model, #airfoil_model_1,
         integration_scheme='trapezoidal',
     )
     outputs = bem_model.evaluate(inputs=bem_inputs)
@@ -143,7 +144,7 @@ if vectorized:
 else:
     bem_model = BEMModel(
         num_nodes=1,
-        airfoil_model=mh_117_2d_model, #airfoil_model_1,
+        airfoil_model=ml_airfoil_model, #airfoil_model_1,
         integration_scheme='trapezoidal',
     )
 
@@ -176,13 +177,16 @@ recorder.iinline = False
 jax_sim = csdl.experimental.JaxSimulator(
     recorder=recorder, gpu=False,
 )
-t1 = time.time()
-jax_sim.compute_totals()
-t2 = time.time()
 
-jax_sim.compute_totals()
+t4 = time.time()
+jax_sim.compute_optimization_derivatives()
+t5 = time.time()
+jax_sim.compute_optimization_derivatives()
+t6 = time.time()
+print("Compile derivative function time: ", t5-t4)
+print("derivative function time: ", t6-t5)
 
-print(t2 - t1)
+# jax_sim.compute_totals()
 
 exit()
 

@@ -91,7 +91,7 @@ class RotorAnalysisInputs(csdl.VariableGroup):
     mesh_velocity: csdl.Variable
     mesh_parameters: RotorMeshParameters
     atmos_states : Optional[AtmosStates] = AtmosStates()
-    ac_states = None
+    ac_states : Optional[AtmosStates] = None
     theta_0 : Union[csdl.Variable, int, float] = 0
     theta_1_c : Union[csdl.Variable, int, float] = 0
     theta_1_s : Union[csdl.Variable, int, float] = 0

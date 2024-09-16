@@ -94,7 +94,7 @@ def compute_quantities_of_interest(
         total_power=power,
         efficiency=eta,
         figure_of_merit=FoM,
-        thrust_coefficient=C_T,
+        thrust_coefficient=CT_H,
         torque_coefficient=C_Q,
         power_coefficient=C_P
     )

@@ -68,6 +68,7 @@ def solve_for_steady_state_inflow(
     phi_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
 
+    # for i in csdl.frange(num_nodes):
     for i in range(num_nodes):
         # Initialize implicit variables (state vector)
         state_vec = csdl.ImplicitVariable(shape=(3, ), value=0.01*np.ones((3, )))
@@ -108,12 +109,12 @@ def solve_for_steady_state_inflow(
         F = tip_loss * F_initial + (1 - tip_loss) * 1
 
         # Smooth the transition if airfoil model consists of multiple airfoils
-        if isinstance(airfoil_model, CompositeAirfoilModel):
-            if airfoil_model.smoothing:
-                window = airfoil_model.transition_window
-                indices = airfoil_model.stop_indices
-                Cl = smooth_quantities_spanwise(Cl, indices, window)
-                Cd = smooth_quantities_spanwise(Cd, indices, window)
+        # if isinstance(airfoil_model, CompositeAirfoilModel):
+        #     if airfoil_model.smoothing:
+        #         window = airfoil_model.transition_window
+        #         indices = airfoil_model.stop_indices
+        #         Cl = smooth_quantities_spanwise(Cl, indices, window)
+        #         Cd = smooth_quantities_spanwise(Cd, indices, window)
 
         # Compute sectional thrust, torque, moments and coefficients
         Cx = Cl * csdl.cos(phi) - Cd * csdl.sin(phi)
