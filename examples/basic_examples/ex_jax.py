@@ -9,15 +9,15 @@ from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
-from jax._src import config
-config.update("jax_platforms", "cpu")
+# from jax._src import config
+# config.update("jax_platforms", "cpu")
 
-recorder = csdl.Recorder(inline=True, debug=False, expand_ops=False)
+recorder = csdl.Recorder(inline=True, debug=False, expand_ops=True)
 recorder.start()
 
-num_nodes = 4
-num_radial = 30
-num_azimuthal = 30
+num_nodes = 1
+num_radial = 25
+num_azimuthal = 25
 
 num_blades = 2
 num_cp = 5
@@ -55,6 +55,8 @@ twist_profile = profile_parameterization.evaluate_radial_profile(twist_control_p
 
 ml_airfoil_model = NACA4412MLAirfoilModel()
 
+two_ml_model = TwoDMLAirfoilModel(airfoil_name="naca_4412")
+
 naca_4412_polar = ZeroDAirfoilPolarParameters(
     alpha_stall_minus=-14, 
     alpha_stall_plus=16,
@@ -87,9 +89,10 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PittPetersModel(
     num_nodes=num_nodes,
-    airfoil_model=ml_airfoil_model,
+    airfoil_model=ml_airfoil_model, #naca_4412_zero_d_model, #
     integration_scheme='trapezoidal',
     use_frange_in_nl_solver=False,
+    # nl_solver_mode="vectorized",
 )
 outputs = bem_model.evaluate(inputs=bem_inputs)
 
@@ -107,6 +110,9 @@ thrust.set_as_constraint(upper=5.5, lower=5.5, scaler=1/5)
 recorder.iinline = False
 jax_sim = csdl.experimental.JaxSimulator(
     recorder=recorder, gpu=False,
+    derivatives_kwargs= {
+            "concatenate_ofs" : True # Turn off
+        }
 )
 
 t4 = time.time()
@@ -117,4 +123,4 @@ t6 = time.time()
 print("Compile derivative function time: ", t5-t4)
 print("derivative function time: ", t6-t5)
 
-# jax_sim.compute_totals()
+jax_sim.check_optimization_derivatives()

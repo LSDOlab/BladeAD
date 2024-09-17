@@ -15,7 +15,7 @@ class PittPetersModel:
         tip_loss: bool=True,
         integration_scheme: str = "trapezoidal",
         nl_solver_mode : str = "standard",
-        use_frange_in_nl_solver : bool = False,
+        use_frange_in_nl_solver : bool = True,
     ) -> None:
         csdl.check_parameter(num_nodes, "num_nodes", types=int)
         csdl.check_parameter(integration_scheme, "integration_scheme", values=("Simpson", "Riemann", "trapezoidal"))

@@ -72,7 +72,7 @@ def solve_for_steady_state_inflow(
 
     if mode == "standard":
         if use_frange_in_nl_solver:
-            for i in csdl.frange(num_nodes):
+            for i in csdl.frange(num_nodes, stack_all=True, inline_lazy_stack=False):
             # for i in range(num_nodes):
                 # Initialize implicit variables (state vector)
                 state_vec = csdl.ImplicitVariable(shape=(3, ), value=0.01*np.ones((3, )))
@@ -174,11 +174,11 @@ def solve_for_steady_state_inflow(
                 # basic fixed point iteration for state update
                 state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
-                solver = csdl.nonlinear_solvers.GaussSeidel(
+                solver = csdl.nonlinear_solvers.Newton(
                     max_iter=100, 
-                    residual_jac_kwargs={'elementwise' : False, 'loop' : True}
+                    residual_jac_kwargs={'elementwise' : False, 'loop' : False}
                 )
-                solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
+                solver.add_state(state_vec, residual=residual)#, state_update=state_vec + state_update)
                 solver.run()
 
                 dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
@@ -326,16 +326,14 @@ def solve_for_steady_state_inflow(
                 # basic fixed point iteration for state update
                 state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
-                solver = csdl.nonlinear_solvers.GaussSeidel(
+                solver = csdl.nonlinear_solvers.Newton(
                     max_iter=100, 
                     residual_jac_kwargs={'elementwise' : False, 'loop' : True}
                 )
-                solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
+                solver.add_state(state_vec, residual=residual)#, state_update=state_vec + state_update)
                 solver.run()
 
-                dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
                 dQ = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr[i, :, :] * F
-                thrust = integrate_quantity(dT, integration_scheme)
                 torque = integrate_quantity(dQ, integration_scheme)
 
                 # compute thrust/torque/power coefficient
@@ -403,8 +401,8 @@ def solve_for_steady_state_inflow(
         rhs_block = csdl.Variable(shape=(num_nodes * 3, ), value=0.)
         L_block_mat = csdl.Variable(shape=(num_nodes * 3, num_nodes *3), value=0.)
 
-        for i in csdl.frange(num_nodes):
-        # for i in range(num_nodes):
+        # for i in csdl.frange(num_nodes):
+        for i in range(num_nodes):
             # print(i.value)
             # Initialize implicit variables (state vector)
             num_node_index = i * 3 

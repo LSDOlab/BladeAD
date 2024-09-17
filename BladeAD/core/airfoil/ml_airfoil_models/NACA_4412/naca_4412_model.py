@@ -167,22 +167,58 @@ class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
         input_tensor[:, 1] = Re.flatten()
         input_tensor[:, 2] = Ma.flatten()
 
-        input_tensor_scaled = (input_tensor - X_min) / (X_max - X_min)
-        input_tensor_torch_scaled = torch.tensor(input_tensor_scaled, dtype=torch.float64).to(device)
+        # input_tensor_scaled = (input_tensor - X_min) / (X_max - X_min)
+        # input_tensor_torch_scaled = torch.tensor(input_tensor_scaled, dtype=torch.float64).to(device)
+
+        # # Cl jacobian
+        # d_Cl_d_scaled_tensor = vmap(jacfwd(Cl_model))(input_tensor_torch_scaled).squeeze().detach().numpy()
+
+
+        # # Cd jacobian
+        # d_Cd_d_scaled_tensor = vmap(jacfwd(Cd_model))(input_tensor_torch_scaled).squeeze().detach().numpy()
+
+
+        # # Chain rule
+        # d_scaled_tensor_d_tensor = (1/(X_max - X_min)).reshape((1, 3))
+        # dCl_d_inputs = np.einsum('ik, lk->ik', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
+        # dCd_d_inputs = np.einsum('ik, lk->ik', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
+
+        # Move tensor operations to PyTorch and GPU where possible
+        # input_tensor = torch.zeros((size, 3), device=device, dtype=torch.float64)
+        # input_tensor[:, 0] = torch.tensor(alpha.flatten(), device=device, dtype=torch.float64)
+        # input_tensor[:, 1] = torch.tensor(Re.flatten(), device=device, dtype=torch.float64)
+        # input_tensor[:, 2] = torch.tensor(Ma.flatten(), device=device, dtype=torch.float64)
+
+        # Scaling the input
+        X_range_np = X_max - X_min  # Precompute range for reuse
+        X_range = torch.tensor(X_range_np, device=device, dtype=torch.float64)
+        input_tensor_scaled = (input_tensor - X_min) / X_range
 
         # Cl jacobian
-        d_Cl_d_scaled_tensor = vmap(jacrev(Cl_model))(input_tensor_torch_scaled).detach().numpy()
-        d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.reshape((size, 3))
-        
-        # Cd jacobian
-        d_Cd_d_scaled_tensor = vmap(jacrev(Cd_model))(input_tensor_torch_scaled).detach().numpy()
-        d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.reshape((size, 3))
+        d_Cl_d_scaled_tensor = vmap(jacrev(Cl_model))(input_tensor_scaled).squeeze() #.detach()
 
-        # Chain rule
-        d_scaled_tensor_d_tensor = (1/(X_max - X_min)).reshape((1, 3))
-        dCl_d_inputs = np.einsum('ik, lk->ik', d_Cl_d_scaled_tensor, d_scaled_tensor_d_tensor)
-        dCd_d_inputs = np.einsum('ik, lk->ik', d_Cd_d_scaled_tensor, d_scaled_tensor_d_tensor)
-        
+        # Cd jacobian
+        d_Cd_d_scaled_tensor = vmap(jacrev(Cd_model))(input_tensor_scaled).squeeze() #.detach()
+
+        # if d_Cl_d_scaled_tensor.ndim == 3:
+        #     d_Cl_d_scaled_tensor = d_Cl_d_scaled_tensor.squeeze()  # Remove extra dimensions if necessary
+
+        # if d_Cd_d_scaled_tensor.ndim == 3:
+        #     d_Cd_d_scaled_tensor = d_Cd_d_scaled_tensor.squeeze()
+
+        # Precompute the scaling factor for the chain rule
+        d_scaled_tensor_d_tensor = (1 / X_range).view(1, 3)
+
+        # Use torch.einsum for the chain rule instead of numpy.einsum
+        dCl_d_inputs_torch = d_Cl_d_scaled_tensor * d_scaled_tensor_d_tensor 
+        dCd_d_inputs_torch = d_Cd_d_scaled_tensor * d_scaled_tensor_d_tensor 
+
+        # If necessary, convert back to numpy at the very end
+        dCl_d_inputs = dCl_d_inputs_torch.detach().cpu().numpy()
+        dCd_d_inputs = dCd_d_inputs_torch.detach().cpu().numpy()
+
+        # print("dCl_d_inputs", dCl_d_inputs)
+
         # Assign derivatives
         derivatives["Cl", "alpha"] = dCl_d_inputs[:, 0] * 180/np.pi
         derivatives["Cl", "Re"] = dCl_d_inputs[:, 1]
