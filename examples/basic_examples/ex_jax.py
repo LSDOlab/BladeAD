@@ -15,7 +15,7 @@ import numpy as np
 recorder = csdl.Recorder(inline=True, debug=False, expand_ops=True)
 recorder.start()
 
-num_nodes = 1
+num_nodes = 10
 num_radial = 25
 num_azimuthal = 25
 
