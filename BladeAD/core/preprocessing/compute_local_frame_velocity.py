@@ -39,6 +39,7 @@ def compute_local_frame_velocities(
  
  
     for i in csdl.frange(num_nodes):
+    # for i in range(num_nodes):
         normal_vec = thrust_vector[i, :]
  
         # project normal (i.e., thrust) vector along [0, 1, 0]

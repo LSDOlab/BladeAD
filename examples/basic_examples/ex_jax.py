@@ -54,7 +54,6 @@ twist_profile = profile_parameterization.evaluate_radial_profile(twist_control_p
 # mesh_velocity.set_as_design_variable()
 
 ml_airfoil_model = NACA4412MLAirfoilModel()
-
 two_ml_model = TwoDMLAirfoilModel(airfoil_name="naca_4412")
 
 naca_4412_polar = ZeroDAirfoilPolarParameters(
@@ -89,9 +88,9 @@ bem_inputs = RotorAnalysisInputs(
 
 bem_model = PittPetersModel(
     num_nodes=num_nodes,
-    airfoil_model=ml_airfoil_model, #naca_4412_zero_d_model, #
+    airfoil_model=ml_airfoil_model, #two_ml_model, #naca_4412_zero_d_model, # 
     integration_scheme='trapezoidal',
-    use_frange_in_nl_solver=False,
+    use_frange_in_nl_solver=True,
     # nl_solver_mode="vectorized",
 )
 outputs = bem_model.evaluate(inputs=bem_inputs)
@@ -99,6 +98,10 @@ outputs = bem_model.evaluate(inputs=bem_inputs)
 thrust_stack = outputs.total_thrust
 torque_stack = outputs.total_torque
 
+# print(thrust_stack.value)
+# print(torque_stack.value)
+
+# exit()
 import time 
 
 torque = csdl.average(torque_stack)
@@ -107,7 +110,7 @@ thrust = csdl.average(thrust_stack)
 thrust.set_as_constraint(upper=5.5, lower=5.5, scaler=1/5)
 
 
-recorder.iinline = False
+recorder.inline = False
 jax_sim = csdl.experimental.JaxSimulator(
     recorder=recorder, gpu=False,
     derivatives_kwargs= {
@@ -123,4 +126,4 @@ t6 = time.time()
 print("Compile derivative function time: ", t5-t4)
 print("derivative function time: ", t6-t5)
 
-jax_sim.check_optimization_derivatives()
+# jax_sim.check_optimization_derivatives()

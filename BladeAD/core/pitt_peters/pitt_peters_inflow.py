@@ -56,16 +56,8 @@ def solve_for_steady_state_inflow(
     lambda_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     ux_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     dT_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
-    dQ_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
-    dD_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     thrust_container = csdl.Variable(shape=(num_nodes, ), value=0)
-    torque_container = csdl.Variable(shape=(num_nodes, ), value=0)
     residual_container = csdl.Variable(shape=(num_nodes, 3), value=0)
-    C_T_containter = csdl.Variable(shape=(num_nodes, ), value=0)
-    C_P_containter = csdl.Variable(shape=(num_nodes, ), value=0)
-    C_Q_containter = csdl.Variable(shape=(num_nodes, ), value=0)
-    eta_container = csdl.Variable(shape=(num_nodes, ), value=0)
-    FoM_container = csdl.Variable(shape=(num_nodes, ), value=0)
     inflow_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
     phi_container = csdl.Variable(shape=(num_nodes, num_radial, num_azimuthal), value=0)
 
@@ -172,57 +164,60 @@ def solve_for_steady_state_inflow(
                 residual = state_vec - csdl.matvec(L_mat_new, rhs)
             
                 # basic fixed point iteration for state update
-                state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
+                # state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
                 solver = csdl.nonlinear_solvers.Newton(
                     max_iter=100, 
-                    residual_jac_kwargs={'elementwise' : False, 'loop' : False}
+                    residual_jac_kwargs={'elementwise' : False, 'loop' : True}
                 )
                 solver.add_state(state_vec, residual=residual)#, state_update=state_vec + state_update)
                 solver.run()
-
-                dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
-                dQ = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr[i, :, :] * F
-                thrust = integrate_quantity(dT, integration_scheme)
-                torque = integrate_quantity(dQ, integration_scheme)
-
-                # compute thrust/torque/power coefficient
-                CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**4
-                area = np.pi * radius[i, 0, 0]**2
-                V_tip = rpm[i] / 60 * 2 * np.pi * radius[i, 0, 0]
-                C_T_new = thrust / rho[i, 0, 0]/ area / V_tip**2
-                CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**5
-                CP = 2 * np.pi * CQ
-
-                CT_H = CT * 4 / np.pi**3
-                CQ_H = CQ * 8 / np.pi**3
-
-                power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius[i, 0, 0])**5
-
-
-                # Compute advance ratio and efficiency and FOM
-                J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius[i, 0, 0])
-                eta = CT * J / CP
-                # FoM = CT * (CT/2)**0.5 / CP
-                FoM = CT_H * (CT_H/2)**0.5 / CQ_H
 
                 # Storing data
                 inflow_container = inflow_container.set(csdl.slice[i, :, :], lam_exp_i)
                 ux_container = ux_container.set(csdl.slice[i, :, :], ux)
                 dT_container = dT_container.set(csdl.slice[i, :, :], dT)
-                dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
-                dD_container = dD_container.set(csdl.slice[i, :, :], dQ / radius_vec[i, :, :])
-                phi_container = phi_container.set(csdl.slice[i, :, :], phi)
                 thrust_container = thrust_container.set(csdl.slice[i], thrust)
-                torque_container = torque_container.set(csdl.slice[i], torque)
-                C_T_containter = C_T_containter.set(csdl.slice[i], C_T_new)
-                C_P_containter = C_P_containter.set(csdl.slice[i], CP)
-                C_Q_containter = C_Q_containter.set(csdl.slice[i], CQ)
-                eta_container = eta_container.set(csdl.slice[i], eta)
-                FoM_container = FoM_container.set(csdl.slice[i], FoM)
-
                 states_container = states_container.set(csdl.slice[i, :], state_vec)
                 residual_container = residual_container.set(csdl.slice[i, :], residual)
+
+            # Compute sectional Cl, Cd
+            alpha = twist_profile - phi_container
+            Cl, Cd = airfoil_model.evaluate(alpha, Re, Ma)
+
+            # Prandtl tip losses 
+            f_tip = num_blades / 2 * (radius - radius_vec_exp) / radius / csdl.sin(phi_container)
+            f_hub = num_blades / 2 * (radius_vec_exp - hub_radius) / hub_radius / csdl.sin(phi_container)
+
+            F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
+            F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
+
+            F_initial = F_tip * F_hub
+            F = tip_loss * F_initial + (1 - tip_loss) * 1
+
+            Ct = Cl * csdl.sin(phi_container) + Cd * csdl.cos(phi_container)
+
+            dQ = 0.5 * B * rho * (ux_container**2 + Vt**2) * chord_profile * Ct * radius_vec * dr * F
+            torque = integrate_quantity(dQ, integration_scheme)
+
+            # compute thrust/torque/power coefficient
+            CT = thrust / rho[:, 0, 0] / (rpm / 60)**2 / (2 * radius[:, 0, 0])**4
+            area = np.pi * radius[:, 0, 0]**2
+            V_tip = rpm / 60 * 2 * np.pi * radius[:, 0, 0]
+            C_T_new = thrust / rho[:, 0, 0]/ area / V_tip**2
+            CQ = torque / rho[:, 0, 0] / (rpm / 60)**2 / (2 * radius[:, 0, 0])**5
+            CP = 2 * np.pi * CQ
+
+            CT_H = CT * 4 / np.pi**3
+            CQ_H = CQ * 8 / np.pi**3
+
+            power = CP * rho[:, 0, 0] * (rpm / 60)**3 * (2 * radius[:, 0, 0])**5
+
+            # Compute advance ratio and efficiency and FOM
+            J = Vx[:, 0, 0] / (rpm / 60) / (2 * radius[:, 0, 0])
+            eta = CT * J / CP
+            # FoM = CT * (CT/2)**0.5 / CP
+            FoM = CT_H * (CT_H/2)**0.5 / CQ_H
 
         else:
             for i in range(num_nodes):
@@ -324,7 +319,7 @@ def solve_for_steady_state_inflow(
                 residual = state_vec - csdl.matvec(L_mat_new, rhs)
             
                 # basic fixed point iteration for state update
-                state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
+                # state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
                 solver = csdl.nonlinear_solvers.Newton(
                     max_iter=100, 
@@ -333,61 +328,66 @@ def solve_for_steady_state_inflow(
                 solver.add_state(state_vec, residual=residual)#, state_update=state_vec + state_update)
                 solver.run()
 
-                dQ = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Ct * radius_vec[i, :, :] * dr[i, :, :] * F
-                torque = integrate_quantity(dQ, integration_scheme)
-
-                # compute thrust/torque/power coefficient
-                CT = thrust / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**4
-                area = np.pi * radius[i, 0, 0]**2
-                V_tip = rpm[i] / 60 * 2 * np.pi * radius[i, 0, 0]
-                C_T_new = thrust / rho[i, 0, 0]/ area / V_tip**2
-                CQ = torque / rho[i, 0, 0] / (rpm[i] / 60)**2 / (2 * radius[i, 0, 0])**5
-                CP = 2 * np.pi * CQ
-
-                CT_H = CT * 4 / np.pi**3
-                CQ_H = CQ * 8 / np.pi**3
-
-                power = CP * rho[i, 0, 0] * (rpm[i] / 60)**3 * (2 * radius[i, 0, 0])**5
-
-
-                # Compute advance ratio and efficiency and FOM
-                J = Vx[i, 0, 0] / (rpm[i] / 60) / (2 * radius[i, 0, 0])
-                eta = CT * J / CP
-                # FoM = CT * (CT/2)**0.5 / CP
-                FoM = CT_H * (CT_H/2)**0.5 / CQ_H
-
                 # Storing data
                 inflow_container = inflow_container.set(csdl.slice[i, :, :], lam_exp_i)
                 ux_container = ux_container.set(csdl.slice[i, :, :], ux)
                 dT_container = dT_container.set(csdl.slice[i, :, :], dT)
-                dQ_container = dQ_container.set(csdl.slice[i, :, :], dQ)
-                dD_container = dD_container.set(csdl.slice[i, :, :], dQ / radius_vec[i, :, :])
-                phi_container = phi_container.set(csdl.slice[i, :, :], phi)
                 thrust_container = thrust_container.set(csdl.slice[i], thrust)
-                torque_container = torque_container.set(csdl.slice[i], torque)
-                C_T_containter = C_T_containter.set(csdl.slice[i], C_T_new)
-                C_P_containter = C_P_containter.set(csdl.slice[i], CP)
-                C_Q_containter = C_Q_containter.set(csdl.slice[i], CQ)
-                eta_container = eta_container.set(csdl.slice[i], eta)
-                FoM_container = FoM_container.set(csdl.slice[i], FoM)
-
                 states_container = states_container.set(csdl.slice[i, :], state_vec)
                 residual_container = residual_container.set(csdl.slice[i, :], residual)
+
+            # Compute sectional Cl, Cd
+            alpha = twist_profile - phi_container
+            Cl, Cd = airfoil_model.evaluate(alpha, Re, Ma)
+
+            # Prandtl tip losses 
+            f_tip = num_blades / 2 * (radius - radius_vec_exp) / radius / csdl.sin(phi_container)
+            f_hub = num_blades / 2 * (radius_vec_exp - hub_radius) / hub_radius / csdl.sin(phi_container)
+
+            F_tip = 2 / np.pi * csdl.arccos(csdl.exp(-(f_tip**2)**0.5))
+            F_hub = 2 / np.pi * csdl.arccos(csdl.exp(-(f_hub**2)**0.5))
+
+            F_initial = F_tip * F_hub
+            F = tip_loss * F_initial + (1 - tip_loss) * 1
+
+            Ct = Cl * csdl.sin(phi_container) + Cd * csdl.cos(phi_container)
+
+            dQ = 0.5 * B * rho * (ux_container**2 + Vt**2) * chord_profile * Ct * radius_vec * dr * F
+            torque = integrate_quantity(dQ, integration_scheme)
+
+            # compute thrust/torque/power coefficient
+            CT = thrust / rho[:, 0, 0] / (rpm / 60)**2 / (2 * radius[:, 0, 0])**4
+            area = np.pi * radius[:, 0, 0]**2
+            V_tip = rpm / 60 * 2 * np.pi * radius[:, 0, 0]
+            C_T_new = thrust / rho[:, 0, 0]/ area / V_tip**2
+            CQ = torque / rho[:, 0, 0] / (rpm / 60)**2 / (2 * radius[:, 0, 0])**5
+            CP = 2 * np.pi * CQ
+
+            CT_H = CT * 4 / np.pi**3
+            CQ_H = CQ * 8 / np.pi**3
+
+            power = CP * rho[:, 0, 0] * (rpm / 60)**3 * (2 * radius[:, 0, 0])**5
+
+            # Compute advance ratio and efficiency and FOM
+            J = Vx[:, 0, 0] / (rpm / 60) / (2 * radius[:, 0, 0])
+            eta = CT * J / CP
+            # FoM = CT * (CT/2)**0.5 / CP
+            FoM = CT_H * (CT_H/2)**0.5 / CQ_H
 
         outputs = RotorAnalysisOutputs(
             axial_induced_velocity=ux_container,
             tangential_induced_velocity=None,
             sectional_thrust=dT_container,
-            sectional_torque=dQ_container,
-            sectional_drag=dD_container,
+            sectional_torque=dQ,
+            sectional_drag=dQ/radius_vec,
             total_thrust=thrust_container,
-            total_torque=torque_container,
-            total_power=power,
-            efficiency=eta_container,
-            figure_of_merit=FoM_container,
-            thrust_coefficient=C_T_containter,
-            torque_coefficient=C_Q_containter,
-            power_coefficient=C_P_containter,
+            total_torque=torque,
+            total_power=power, #,
+            efficiency=eta, #eta_container,
+            figure_of_merit=FoM, #FoM_container,
+            thrust_coefficient=C_T_new, #C_T_containter,
+            torque_coefficient=CQ, #C_Q_containter,
+            power_coefficient=CP, #C_P_containter,
             residual=residual_container,
             )
         outputs.normalized_axial_induced_flow = lambda_container
@@ -401,8 +401,8 @@ def solve_for_steady_state_inflow(
         rhs_block = csdl.Variable(shape=(num_nodes * 3, ), value=0.)
         L_block_mat = csdl.Variable(shape=(num_nodes * 3, num_nodes *3), value=0.)
 
-        # for i in csdl.frange(num_nodes):
-        for i in range(num_nodes):
+        for i in csdl.frange(num_nodes, stack_all=True, inline_lazy_stack=True):
+        # for i in range(num_nodes):
             # print(i.value)
             # Initialize implicit variables (state vector)
             num_node_index = i * 3 
@@ -547,11 +547,16 @@ def solve_for_steady_state_inflow(
         # basic fixed point iteration for state update
         state_update = 0.5 * (csdl.matvec(L_block_mat, rhs_block) - state_vec)
 
-        solver = csdl.nonlinear_solvers.GaussSeidel(
+        # solver = csdl.nonlinear_solvers.GaussSeidel(
+        #     max_iter=100, 
+        #     residual_jac_kwargs={'elementwise' : False, 'loop' : True}
+        # )
+
+        solver = csdl.nonlinear_solvers.Newton(
             max_iter=100, 
             residual_jac_kwargs={'elementwise' : False, 'loop' : True}
         )
-        solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
+        solver.add_state(state_vec, residual=residual)
         solver.run()
 
         # for i in csdl.frange(num_nodes):
