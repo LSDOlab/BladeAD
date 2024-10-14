@@ -9,13 +9,13 @@ from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
-# from jax._src import config
-# config.update("jax_platforms", "cpu")
+from jax._src import config
+config.update("jax_platforms", "cpu")
 
-recorder = csdl.Recorder(inline=True, debug=False, expand_ops=True)
+recorder = csdl.Recorder(inline=True, debug=True, expand_ops=True)
 recorder.start()
 
-num_nodes = 10
+num_nodes = 8
 num_radial = 25
 num_azimuthal = 25
 
@@ -26,17 +26,28 @@ tilt_angle = np.deg2rad(10)
 tx = np.cos(tilt_angle)
 tz = np.sin(tilt_angle)
 thrust_vector=csdl.Variable(value=np.array([tx, 0, -tz]))
-thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
+thrust_origin=csdl.Variable(
+    value=np.array(
+        [[0. ,-5., 0.],
+         [0., 5., 0.],
+         [0., -5., 0.],
+         [0., 5., 0.],
+         [0., -5., 0.],
+         [0., 5., 0.],
+         [0., -5., 0.],
+         [0., 5., 0.],]
+    )
+)
 # chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
 # twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
-radius = csdl.Variable(value=0.3048001 / 2)
+radius = csdl.Variable(value=3.048001 / 2)
 mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 0] = np.linspace(0.0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
+mesh_vel_np[:, 0] = 10 #, np.linspace(0.0, 10.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
 mesh_velocity = csdl.Variable(value=mesh_vel_np)
-rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
+rpm = csdl.Variable(value=1200 * np.ones((num_nodes,)))
 
 
-chord_control_points = csdl.Variable(value=np.linspace(0.031 ,0.012, num_cp))
+chord_control_points = csdl.Variable(value=np.linspace(0.31 ,0.12, num_cp))
 twist_control_points = csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_cp))
 
 chord_control_points.set_as_design_variable(lower=0.005, upper=0.05, scaler=50)
@@ -86,20 +97,30 @@ bem_inputs = RotorAnalysisInputs(
     mesh_velocity=mesh_velocity,
 )
 
-bem_model = PittPetersModel(
+rotor_model = BEMModel(
     num_nodes=num_nodes,
-    airfoil_model=ml_airfoil_model, #two_ml_model, #naca_4412_zero_d_model, # 
+    airfoil_model=ml_airfoil_model, #two_ml_model, #
     integration_scheme='trapezoidal',
-    use_frange_in_nl_solver=True,
+    # use_frange_in_nl_solver=False,
     # nl_solver_mode="vectorized",
+    rotation_direction=None, #"cw", #["cw", "ccw"],
 )
-outputs = bem_model.evaluate(inputs=bem_inputs)
+outputs = rotor_model.evaluate(
+    inputs=bem_inputs,
+    mirror_forces_and_moments=False,
+)
 
 thrust_stack = outputs.total_thrust
 torque_stack = outputs.total_torque
 
-# print(thrust_stack.value)
+forces = outputs.forces
+moments = outputs.moments
+
+# print(thrust_stack.forc)
 # print(torque_stack.value)
+
+print(forces.value)
+print(moments.value)
 
 # exit()
 import time 

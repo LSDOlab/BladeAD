@@ -210,7 +210,7 @@ def train_two_d_airfoil_model(
             
             Cd_model = build_model_from_parameters(params_dict_cd, None, None, None, None, None, None, train=False)
             Cd_model.eval()
-            Cd_model.load_state_dict(torch.load(f"{data_directory_path}/Cd_model", map_location=torch.device("cpu")))
+            Cd_model.load_state_dict(torch.load(f"{data_directory_path}/Cd_model", map_location=torch.device("cpu"), weights_only=True))
         
         elif force_retrain_Cd is True and force_retrain_Cl is False:
             print(":::::::::::::::::::::::::::TRAINING Cd MODEL:::::::::::::::::::::::::::")
@@ -227,7 +227,7 @@ def train_two_d_airfoil_model(
             
             Cl_model = build_model_from_parameters(params_dict_Cl, None, None, None, None, None, None, train=False)
             Cl_model.eval()
-            Cl_model.load_state_dict(torch.load(f"{data_directory_path}/Cl_model", map_location=torch.device("cpu")))
+            Cl_model.load_state_dict(torch.load(f"{data_directory_path}/Cl_model", map_location=torch.device("cpu"), weights_only=True))
 
         else:
             if os.path.isfile(f"{data_directory_path}/tuned_Cl_model_params.pickle"):
@@ -243,11 +243,11 @@ def train_two_d_airfoil_model(
 
             Cl_model = build_model_from_parameters(params_dict_cl, None, None, None, None, None, None, False)
             Cl_model.eval()
-            Cl_model.load_state_dict(torch.load(f"{data_directory_path}/Cl_model", map_location=torch.device("cpu")))
+            Cl_model.load_state_dict(torch.load(f"{data_directory_path}/Cl_model", map_location=torch.device("cpu"), weights_only=True))
             
             Cd_model = build_model_from_parameters(params_dict_cd, None, None, None, None, None, None, False)
             Cd_model.eval()
-            Cd_model.load_state_dict(torch.load(f"{data_directory_path}/Cd_model", map_location=torch.device("cpu")))
+            Cd_model.load_state_dict(torch.load(f"{data_directory_path}/Cd_model", map_location=torch.device("cpu"), weights_only=True))
 
     else:
         print(":::::::::::::::::::::::::::TRAINING Cl MODEL:::::::::::::::::::::::::::")

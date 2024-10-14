@@ -65,7 +65,6 @@ def solve_for_steady_state_inflow(
     if mode == "standard":
         if use_frange_in_nl_solver:
             for i in csdl.frange(num_nodes, stack_all=True, inline_lazy_stack=False):
-            # for i in range(num_nodes):
                 # Initialize implicit variables (state vector)
                 state_vec = csdl.ImplicitVariable(shape=(3, ), value=0.01*np.ones((3, )))
 
@@ -170,16 +169,18 @@ def solve_for_steady_state_inflow(
                     max_iter=100, 
                     residual_jac_kwargs={'elementwise' : False, 'loop' : True}
                 )
-                solver.add_state(state_vec, residual=residual)#, state_update=state_vec + state_update)
+                solver.add_state(state_vec, residual=residual)# , state_update=state_vec + state_update)
                 solver.run()
 
                 # Storing data
                 inflow_container = inflow_container.set(csdl.slice[i, :, :], lam_exp_i)
                 ux_container = ux_container.set(csdl.slice[i, :, :], ux)
                 dT_container = dT_container.set(csdl.slice[i, :, :], dT)
+                phi_container = phi_container.set(csdl.slice[i, :, :], phi)
                 thrust_container = thrust_container.set(csdl.slice[i], thrust)
                 states_container = states_container.set(csdl.slice[i, :], state_vec)
                 residual_container = residual_container.set(csdl.slice[i, :], residual)
+                lambda_container = lambda_container.set(csdl.slice[i, :, :], lam_exp_i)
 
             # Compute sectional Cl, Cd
             alpha = twist_profile - phi_container
@@ -331,6 +332,7 @@ def solve_for_steady_state_inflow(
                 # Storing data
                 inflow_container = inflow_container.set(csdl.slice[i, :, :], lam_exp_i)
                 ux_container = ux_container.set(csdl.slice[i, :, :], ux)
+                phi_container = phi_container.set(csdl.slice[i, :, :], phi)
                 dT_container = dT_container.set(csdl.slice[i, :, :], dT)
                 thrust_container = thrust_container.set(csdl.slice[i], thrust)
                 states_container = states_container.set(csdl.slice[i, :], state_vec)

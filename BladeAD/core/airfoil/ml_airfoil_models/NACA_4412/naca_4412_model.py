@@ -36,7 +36,7 @@ Cd_reg = nn.Sequential(
     nn.Linear(115, 1), 
 )
 
-Cd_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cd_neural_net', map_location=torch.device("cpu")))
+Cd_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cd_neural_net', map_location=torch.device("cpu"), weights_only=True)) 
 
 
 Cl_reg = nn.Sequential(
@@ -61,7 +61,7 @@ Cl_reg = nn.Sequential(
             nn.Linear(81, 1), 
 )
 
-Cl_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cl_neural_net', map_location=torch.device("cpu")))
+Cl_reg.load_state_dict(torch.load(_REPO_ROOT_FOLDER / 'core/airfoil/ml_airfoil_models/NACA_4412/Cl_neural_net', map_location=torch.device("cpu"), weights_only=True))
 
 
 class NACA4412MLAirfoilModelCustomOperation(csdl.CustomExplicitOperation):
