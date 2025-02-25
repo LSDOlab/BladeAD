@@ -1,3 +1,4 @@
+"""Example APC 12x5 propeller"""
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
@@ -60,7 +61,6 @@ e63_2d_model = TwoDMLAirfoilModel(
 airfoil_model = CompositeAirfoilModel(
     sections=[0., 0.2, 0.8, 1.],
     airfoil_models=[naca_4412_2d_model, e63_2d_model, clark_y_2d_model],
-    transition_window=8,
 )
 
 
@@ -84,9 +84,10 @@ inputs = RotorAnalysisInputs(
 
 model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=e63_2d_model,
+    airfoil_model=airfoil_model,
     integration_scheme='trapezoidal',
-    tip_loss=False,
+    Q=4, # highest power of r/R
+    M=3, # highest harmonic number
 )
 
 import time 
@@ -101,7 +102,7 @@ Q = outputs.total_torque.value
 
 print("thrust Peters--He", T)
 print("torque Peters--He", Q)
-make_polarplot(outputs.sectional_thrust, plot_contours=False, azimuthal_offset=-90)
+make_polarplot(outputs.axial_induced_velocity, plot_contours=False, azimuthal_offset=-90)
 
 exit()
 

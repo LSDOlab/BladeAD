@@ -1,17 +1,11 @@
 # Basic examples
 
-These pages for each category of examples are optional 
-and are required only if you plan to classify your examples
-into different classes such as basic, intermediate, advanced, etc.
-or any other classification suitable for your package.
-If no classification is required, just remove these pages
-and add the example files directly into the toctree of the main
-examples page.
+Here, we show how to run the three main solvers contain in this package, blade element momentum (BEM) theory, the Pitt--Peters dynamic inflow model, and the Peters--He dynamic inflow model (generalization of Pitt--Peters). 
 
 ```{toctree}
 :maxdepth: 1
 
-../_temp/examples/basic_examples/ex_1quartic_opt_csdl
-../_temp/examples/basic_examples/ex_2quartic_opt_modopt
-../_temp/examples/basic_examples/ex_4simple_example
+../_temp/examples/basic_examples/ex_run_bem
+../_temp/examples/basic_examples/ex_run_pitt_peters
+../_temp/examples/basic_examples/ex_run_peters_he
 ```

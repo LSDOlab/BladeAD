@@ -16,9 +16,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'lsdo_project_template'
-copyright = '2023, Anugrah'
-author = 'Anugrah'
+project = 'blade_ad'
+copyright = '2025, Marius'
+author = 'Marius'
 version = '0.1'
 # release = 0.1.0rtc
 
@@ -54,7 +54,7 @@ myst_enable_extensions = ["dollarmath", "amsmath", "tasklist"]
 nb_execution_mode = 'off'
 
 # autoapi options
-autoapi_dirs = ["../lsdo_project_template/core"]
+autoapi_dirs = ["../BladeAD/core"]
 autoapi_root = 'src/autoapi'
 autoapi_type = 'python'
 autoapi_file_patterns = ['*.py', '*.pyi']

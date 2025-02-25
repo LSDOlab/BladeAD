@@ -8,7 +8,7 @@ from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
 from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
-from lsdo_airfoil.core.three_d_airfoil_aero_model import ThreeDAirfoilMLModelMaker
+# from lsdo_airfoil.core.three_d_airfoil_aero_model import ThreeDAirfoilMLModelMaker
 from BladeAD.utils.plot import make_polarplot
 
 
@@ -45,16 +45,16 @@ naca_0012_airfoil_model = TwoDMLAirfoilModel(
     airfoil_name="naca_0012"
 )
 
-airfoil_model_maker = ThreeDAirfoilMLModelMaker(
-    airfoil_name="naca_0012",
-    aoa_range=np.linspace(-12, 16, 50),
-    reynolds_range=[2e4, 5e4, 1e5, 2e5, 5e5, 1e6, 2e6, 4e6],
-    mach_range=[0., 0.2, 0.3, 0.4, 0.5, 0.6]
-)
+# airfoil_model_maker = ThreeDAirfoilMLModelMaker(
+#     airfoil_name="naca_0012",
+#     aoa_range=np.linspace(-12, 16, 50),
+#     reynolds_range=[2e4, 5e4, 1e5, 2e5, 5e5, 1e6, 2e6, 4e6],
+#     mach_range=[0., 0.2, 0.3, 0.4, 0.5, 0.6]
+# )
 
-airfoil_model = airfoil_model_maker.get_airfoil_model(
-    quantities=["Cl", "Cd"],
-)
+# airfoil_model = airfoil_model_maker.get_airfoil_model(
+#     quantities=["Cl", "Cd"],
+# )
 
 mesh_parameters = RotorMeshParameters(
     thrust_vector=thrust_vector,
@@ -79,7 +79,7 @@ inputs = RotorAnalysisInputs(
 
 peters_he_model = PetersHeModel(
     num_nodes=num_nodes,
-    airfoil_model=airfoil_model, #naca_0012_airfoil_model, #
+    airfoil_model=naca_0012_airfoil_model, #airfoil_model, #
     tip_loss=True,
     Q=6,
     M=6,

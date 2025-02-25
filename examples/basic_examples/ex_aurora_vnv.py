@@ -1,3 +1,4 @@
+"""Example aurora vnv"""
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters

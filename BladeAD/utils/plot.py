@@ -159,7 +159,7 @@ def make_polarplot(
 
     # fig.tight_layout()
     plt.tight_layout()
-    # plt.show()
+    plt.show()
 
 
 

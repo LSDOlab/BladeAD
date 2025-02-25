@@ -29,8 +29,8 @@ Include figures from the relevant paper and citation.
 src/getting_started
 src/background
 src/tutorials
-src/custom_1
-src/custom_2
+<!-- src/custom_1
+src/custom_2 -->
 src/examples
 src/api
 ```
