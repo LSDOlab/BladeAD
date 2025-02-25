@@ -9,27 +9,50 @@ import numpy as np
 
 
 class BEMModel:
+    """Blade Element Momentum (BEM) model.
+
+    Parameters
+    ----------
+    num_nodes : int
+        Number of nodes.
+    airfoil_model : AirfoilModel
+        Airfoil model.
+    integration_scheme : str
+        Integration scheme for thrust and torque computation. 
+        Options are 'Simpson', 'Riemann', 'trapezoidal'. Default is 'trapezoidal'.
+    tip_loss : bool
+        Include tip loss. Default is True.
+    """
     def __init__(
         self,
         num_nodes: int,
         airfoil_model,
         integration_scheme: str = 'trapezoidal',
         tip_loss:bool = True,
-        hover_mode: bool = False,
     ) -> None:
         csdl.check_parameter(num_nodes, 'num_nodes', types=int)
         csdl.check_parameter(integration_scheme, 'integration_scheme', values=('Simpson', 'Riemann', 'trapezoidal'))
         csdl.check_parameter(tip_loss, "tip_loss", types=bool)
-        csdl.check_parameter(hover_mode, "hover_mode", types=bool)
         
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
         self.tip_loss = tip_loss
-        self.hover_mode = hover_mode
 
     def evaluate(self, inputs: RotorAnalysisInputs, ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])) -> RotorAnalysisOutputs:
         """Evaluate the BEM solver.
+
+        Parameters
+        ----------
+        inputs : RotorAnalysisInputs
+            Input variables. Includes quantities like rpm, mesh_parameters, mesh_velocity, etc.
+        ref_point : Union[csdl.Variable, np.ndarray], optional
+            Reference point for computing moments, by default np.array([0., 0., 0.])
+
+        Returns
+        -------
+        RotorAnalysisOutputs (dataclass)
+            Output variables. Includes quanties like total/sectional thrust, total/sectional torque, etc.
         """
         csdl.check_parameter(inputs, "inputs", types=RotorAnalysisInputs)
         csdl.check_parameter(ref_point, "ref_point", types=(csdl.Variable, np.ndarray))

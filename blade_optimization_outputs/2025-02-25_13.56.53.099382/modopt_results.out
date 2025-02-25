@@ -1,0 +1,26 @@
+
+	Solution from Scipy SLSQP:
+	----------------------------------------------------------------------------------------------------
+	Problem                  : blade_optimization
+	Solver                   : scipy-slsqp
+	Success                  : True
+	Message                  : Optimization terminated successfully
+	Status                   : 0
+	Total time               : 2.007858991622925
+	Objective                : 1050.9112962870875
+	Gradient norm            : 1689.091367836943
+	Total function evals     : 50
+	Total gradient evals     : 33
+	Major iterations         : 33
+	Total callbacks          : 167
+	Reused callbacks         : 0
+	obj callbacks            : 50
+	grad callbacks           : 33
+	hess callbacks           : 0
+	con callbacks            : 51
+	jac callbacks            : 33
+	Optimal variables        : [0.27953504 1.58415628 0.97816878 0.79151312 0.19870625 1.76070611
+ 1.20495336 0.79936658 0.61307203 0.57014669]
+	Optimal obj. gradient    : [  26.50817258  137.78577906  258.83534185  414.58791109  310.59187143
+   86.06765976  539.31606892  880.91239664 1091.5357158   481.94349286]
+	----------------------------------------------------------------------------------------------------

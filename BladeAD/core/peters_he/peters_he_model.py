@@ -6,6 +6,23 @@ import csdl_alpha as csdl
  
  
 class PetersHeModel:
+    """Peters--He dynamic inflow model.
+
+    Parameters
+    ----------
+    num_nodes : int
+        Number of nodes.
+    airfoil_model : object
+        Airfoil model.
+    tip_loss : bool, optional
+        Include tip loss, by default True
+    integration_scheme : str, optional
+        Integration scheme, by default "trapezoidal"
+    Q : int, optional
+        Highest power of r/R, by default 3. Has to be less than or equal to 8.
+    M : int, optional
+        Highest harmonic number, by default 3. Has to be less than or equal to Q.
+    """
     def __init__(
         self,
         num_nodes: int,

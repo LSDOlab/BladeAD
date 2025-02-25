@@ -20,6 +20,21 @@ def is_ascending_between_0_and_1(lst):
     return True
 
 class CompositeAirfoilModel:
+    """Class to define a composite airfoil model using multiple airfoil models.
+
+
+    Parameters
+    ----------
+    sections : list
+        list of sections (i.e., points) where the airfoil models change; must include 0 and 1
+    airfoil_models : list, optional
+        list of airfoil models; if None, all airfoils are assumed to be the same, by default None
+    smoothing : bool, optional
+        flag to smooth the transition between airfoils, by default True
+    transition_window : int, optional
+        window size to smooth the transition between airfoils, by
+        default 3
+    """
     def __init__(
             self, 
             sections : list = [],

@@ -12,28 +12,20 @@ class ZeroDAirfoilPolarParameters(csdl.VariableGroup):
     ----------
     alpha_stall_plus: float, int
         positive stall angle (deg)
-
     alpha_stall_minus: float, int
         negative stall angle (deg)
-
     Cl_stall_plus: float, int
         Cl at positive stall 
-
     Cl_stall_minus: float, int
         Cl at negative stall 
-
     Cd_stall_plus: float, int
         Cd at positive stall 
-
     Cd_stall_minus: float, int
         Cd at negative stall
-
     Cl_0: float, int
         Cl at zero angle of attack
-
     Cd_0: float, int
         Cd at zero angle of attack
-
     Cl_alpha: float, int
         lift-curve slope
 
@@ -47,19 +39,6 @@ class ZeroDAirfoilPolarParameters(csdl.VariableGroup):
     Cl_0: Union[float, int]
     Cd_0: Union[float, int]
     Cl_alpha: Union[float, int]
-
-
-class CustomAirfoilModel:
-    def __init__(self, **kwargs) -> None:
-        self.__dict__.update(kwargs=kwargs)
-
-    def evaluate(self, alpha, Re, Ma):
-        raise NotImplementedError
-    
-    def compute_derivatives(self):
-        raise NotImplementedError
-    
-
 
 class ZeroDAirfoilModel:
     def __init__(
@@ -178,7 +157,6 @@ class ZeroDAirfoilModel:
         polar_parameters.coeff_cd_m = coeff_cd_m
 
         return polar_parameters
-
 
     def _predict_values(self, AoA_array):
         aoa = AoA_array.flatten()

@@ -76,6 +76,25 @@ def get_bspline_mtx(num_cp, num_pt, order=4):
 
 
 class BsplineParameterization:
+    """B-spline parameterization for radial profiles.
+
+
+    Parameters
+    ----------
+    num_radial : int
+        Number of radial stations.
+    num_cp : int
+        Number of B-spline control points.
+    order : int, optional
+        Order of B-spline, by default 4.
+
+    Raises
+    ------
+    ValueError
+        B-spline order cannot be greater than the number of control points.
+    ValueError
+        Number of control points cannot be greater than the number of radial stations.
+    """
     def __init__(
             self,
             num_radial,
@@ -98,6 +117,18 @@ class BsplineParameterization:
         self.b_spline_mat = get_bspline_mtx(num_cp, num_radial, order)
 
     def evaluate_radial_profile(self, control_points : csdl.Variable):
+        """Evaluate radial profile using B-spline parameterization.
+
+        Parameters
+        ----------
+        control_points : csdl.Variable
+            B-spline control points.
+
+        Returns
+        -------
+        csdl.Variable
+            Radial profile.
+        """
         b_spline_exp_op = BSplineParameterizationExplicitOperation(
             num_radial=self.num_radial, 
             num_cp=self.num_cp,
@@ -108,6 +139,8 @@ class BsplineParameterization:
 
 
 class BSplineParameterizationExplicitOperation(csdl.CustomExplicitOperation):
+    """CSDL's CustomExplicitOperation for evaluating B-spline parameterization.
+    """
     def __init__(self, num_radial, num_cp, jac):
         self.num_radial = num_radial
         self.num_cp = num_cp

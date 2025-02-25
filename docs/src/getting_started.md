@@ -1,20 +1,14 @@
 # Getting started
-This page provides instructions for installing your package 
+This page provides instructions for installing `BladeAD`
 and running a minimal example.
 
 ## Installation
-
-### Installation instructions for users
 For direct installation with all dependencies, run on the terminal or command line
 ```sh
-$ pip install git+https://github.com/LSDOlab/lsdo_project_template.git
-```
-If you want users to install a specific branch, run
-```sh
-$ pip install git+https://github.com/LSDOlab/lsdo_project_template.git@branch
+$ pip install git+https://github.com/LSDOlab/BladeAD.git
 ```
 
-**Enabled by**: Copying the `setup.py` file, changing your repository name and version, 
+<!-- **Enabled by**: Copying the `setup.py` file, changing your repository name and version, 
 and adding all your dependencies into the list `install_requires`.
 
 ### Installation instructions for developers
@@ -61,4 +55,4 @@ you will see your documentation online.
 The default website address will be generated based on your *Read the Docs* project name as `https://<proj_name>.readthedocs.io/`.
 You can also customize the URL on *Read the Docs*, if needed.
 
-## Setting up Testing
+## Setting up Testing -->
