@@ -21,6 +21,8 @@ class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
             indices = np.arange(shape[0] * shape[1])
         elif len(shape) == 3:
             indices = np.arange(shape[0] * shape[1] * shape[2])
+        elif len(shape) == 1:
+            indices = np.arange(shape[0])
         else: 
             raise NotImplementedError
 

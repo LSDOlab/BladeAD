@@ -1,4 +1,4 @@
-"""Example Peters--He Rotor Analysis Script"""
+"""Peters--He Rotor Analysis Script"""
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
@@ -80,13 +80,13 @@ inputs = RotorAnalysisInputs(
     mesh_velocity=mesh_velocity,
 )
 
+# Instantiate and run Peters--He model
 peters_he_model = PetersHeModel(
     num_nodes=num_nodes,
     airfoil_model=airfoil_model,
     integration_scheme='trapezoidal',
 )
 
-# Instantiate and run Peters--He model
 peters_he_outputs = peters_he_model.evaluate(inputs=inputs)
 
 

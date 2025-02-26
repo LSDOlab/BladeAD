@@ -1,10 +1,7 @@
-"""Example Pitt--Peters Rotor Analysis Script"""
+"""Pitt--Peters Rotor Analysis Script"""
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
-from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
-from BladeAD.core.airfoil.ml_airfoil_models.NACA_4412.naca_4412_model import NACA4412MLAirfoilModel
-from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
@@ -53,7 +50,7 @@ twist_profile=csdl.Variable(name="twist_profile", value=np.linspace(np.deg2rad(5
 radius = csdl.Variable(name="radius", value=1.2)
 
 # 3) Mesh velocity: vector of shape (num_nodes, 3) where each row is the 
-# free streamvelocity vector (u, v, w) at the rotor center
+# free stream velocity vector (u, v, w) at the rotor center
 # In this example we consider a linearly spaced range of flow speeds from 0 to 50 m/s 
 # The flow will be in the x-direction i.e., parallel to the rotor disk
 mesh_vel_np = np.zeros((num_nodes, 3))
