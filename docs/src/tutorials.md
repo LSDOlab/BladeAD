@@ -12,5 +12,6 @@ We start by only considering forward analysis and work up to setting up rotor bl
 
 
 tutorials/pitt_peters
+tutorials/bem_optimization
 
 ```
