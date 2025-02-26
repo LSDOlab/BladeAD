@@ -114,7 +114,7 @@ def make_polarplot(
             row = i // num_cols
             col = i % num_cols
             ax = axs[row, col]
-            ax.set_title(quantity_name)
+            ax.set_title(quantity_name[i])
 
         # Unpack the data for this node
         radial_data = data[i, :, :]

@@ -2,11 +2,7 @@
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
-from BladeAD.core.airfoil.composite_airfoil_model import CompositeAirfoilModel
-from BladeAD.core.airfoil.ml_airfoil_models.NACA_4412.naca_4412_model import NACA4412MLAirfoilModel
-from BladeAD.utils.parameterization import BsplineParameterization
 from BladeAD.core.peters_he.peters_he_model import PetersHeModel
-from BladeAD.core.airfoil.xfoil.two_d_airfoil_model import TwoDMLAirfoilModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
 

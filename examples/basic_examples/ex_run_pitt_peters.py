@@ -1,4 +1,4 @@
-"""Example Pitt--Peters"""
+"""Example Pitt--Peters Rotor Analysis Script"""
 import csdl_alpha as csdl
 from BladeAD.utils.var_groups import RotorAnalysisInputs, RotorMeshParameters
 from BladeAD.core.airfoil.zero_d_airfoil_model import ZeroDAirfoilModel, ZeroDAirfoilPolarParameters
@@ -9,44 +9,22 @@ from BladeAD.core.pitt_peters.pitt_peters_model import PittPetersModel
 from BladeAD.utils.plot import make_polarplot
 import numpy as np
 
+
+# Start CSDL recorder
 recorder = csdl.Recorder(inline=True)
 recorder.start()
 
-
-num_nodes = 5
+# Discretization
+num_nodes = 6 # In this example, we evaluate the model at 6 different flow speeds
 num_radial = 35
-num_azimuthal = 50
+num_azimuthal = 40 # For edgewise flow, set num_azimuthal we need an azimuthal discretization
 
 num_blades = 2
- 
-# thrust_vector=csdl.Variable(value=np.array([1 * np.sin(np.deg2rad(90)), 0, -1 * np.cos(np.deg2rad(90))]))
-# thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
-# chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
-# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
-# radius = csdl.Variable(value=0.3048 / 2)
-# mesh_vel_np = np.zeros((num_nodes, 3))
-# mesh_vel_np[:, 0] = np.linspace(0, 10, num_nodes)
-# mesh_vel_np[:, 1] = 0
-# mesh_vel_np[:, 2] = 0
-# mesh_velocity = csdl.Variable(value=mesh_vel_np)
-# rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
-thrust_vector=csdl.Variable(value=np.array([0., 0, -1]))
-thrust_origin=csdl.Variable(value=np.array([0. ,0., 0.]))
-chord_profile=csdl.Variable(value=np.linspace(0.25, 0.05, num_radial))
-twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(70), np.deg2rad(30), num_radial))
-radius = csdl.Variable(value=1.5)
-# chord_profile=csdl.Variable(value=np.linspace(0.031 ,0.012, num_radial))
-# twist_profile=csdl.Variable(value=np.linspace(np.deg2rad(21.5), np.deg2rad(11.1), num_radial))
-# radius = csdl.Variable(value=0.3048001 / 2)
-mesh_vel_np = np.zeros((num_nodes, 3))
-mesh_vel_np[:, 0] = np.linspace(0, 40.0, num_nodes) # np.linspace(0, 50.06, num_nodes)
-# mesh_vel_np[:, 2] = -10.
-mesh_velocity = csdl.Variable(value=mesh_vel_np)
-rpm = csdl.Variable(value=1200 * np.ones((num_nodes,)))
-# rpm = csdl.Variable(value=4400 * np.ones((num_nodes,)))
 
-polar_parameters_1 = ZeroDAirfoilPolarParameters(
+# Simple 1D airfoil model
+# Specify polar parameters
+polar_parameters = ZeroDAirfoilPolarParameters(
     alpha_stall_minus=-10.,
     alpha_stall_plus=15.,
     Cl_stall_minus=-1.,
@@ -57,66 +35,35 @@ polar_parameters_1 = ZeroDAirfoilPolarParameters(
     Cd_0=0.008,
     Cl_alpha=5.1566,
 )
-
-polar_parameters_2 = ZeroDAirfoilPolarParameters(
-    alpha_stall_minus=-12.,
-    alpha_stall_plus=15.,
-    Cl_stall_minus=-1.,
-    Cl_stall_plus=1.5,
-    Cd_stall_minus=0.02,
-    Cd_stall_plus=0.06,
-    Cl_0=0.48,
-    Cd_0=0.01,
-    Cl_alpha=5.1566,
+# Create airfoil model
+airfoil_model = ZeroDAirfoilModel(
+    polar_parameters=polar_parameters,
 )
 
-airfoil_model_1 = ZeroDAirfoilModel(
-    polar_parameters=polar_parameters_1,
-)
+# Set up rotor analysis inputs
+# 1) thrust (unit) vector and origin (origin is the rotor hub location and only needed for computing moments)
+thrust_vector=csdl.Variable(name="thrust_vector", value=np.array([0., 0., -1.])) # Thrust vector in the negative z-direction (up)
+thrust_origin=csdl.Variable(name="thrust_origin", value=np.array([0. ,0., 0.]))
 
-airfoil_model_2 = ZeroDAirfoilModel(
-    polar_parameters=polar_parameters_2,
-)
+# 2) Rotor geometry 
+# chord and twist profiles (linearly varying from root to tip)
+chord_profile=csdl.Variable(name="chord_profile", value=np.linspace(0.25, 0.05, num_radial))
+twist_profile=csdl.Variable(name="twist_profile", value=np.linspace(np.deg2rad(50), np.deg2rad(20), num_radial)) # Twist in RADIANS
+# Radius of the rotor
+radius = csdl.Variable(name="radius", value=1.2)
 
-# airfoil_model = CompositeAirfoilModel(
-#     sections=[0., 0.5, 0.7, 1.],
-#     airfoil_models=[airfoil_model_1, airfoil_model_1, airfoil_model_2]
-# )
+# 3) Mesh velocity: vector of shape (num_nodes, 3) where each row is the 
+# free streamvelocity vector (u, v, w) at the rotor center
+# In this example we consider a linearly spaced range of flow speeds from 0 to 50 m/s 
+# The flow will be in the x-direction i.e., parallel to the rotor disk
+mesh_vel_np = np.zeros((num_nodes, 3))
+mesh_vel_np[:, 0] = np.linspace(0., 50, num_nodes) # Free stream velocity in the x-direction
+mesh_velocity = csdl.Variable(value=mesh_vel_np)
+# Rotor speed in RPM
+rpm = csdl.Variable(value=2000 * np.ones((num_nodes,)))
 
-naca_4412_2d_model = TwoDMLAirfoilModel(
-    airfoil_name="naca_4412"
-)
-
-clark_y_2d_model = TwoDMLAirfoilModel(
-    airfoil_name="clark_y"
-)
-
-mh_117_2d_model = TwoDMLAirfoilModel(
-    airfoil_name="mh_117"
-)
-
-airfoil_model = CompositeAirfoilModel(
-    sections=[0., 0.35, 0.7, 1.],
-    airfoil_models=[naca_4412_2d_model, clark_y_2d_model, mh_117_2d_model],
-)
-
-
-naca_4412_polar = ZeroDAirfoilPolarParameters(
-    alpha_stall_minus=-13, 
-    alpha_stall_plus=15,
-    Cl_stall_minus=-1.,
-    Cl_stall_plus=1.5,
-    Cd_stall_minus=0.03,
-    Cd_stall_plus=0.041,
-    Cd_0=0.008,
-    Cl_0=0.5,
-    Cl_alpha=6.14,
-)
-naca_4412_zero_d_model = ZeroDAirfoilModel(naca_4412_polar)
-
-# airfoil_model = NACA4412MLAirfoilModel()
-
-
+# 4) Assemble inputs
+# mesh parameters
 bem_mesh_parameters = RotorMeshParameters(
     thrust_vector=thrust_vector,
     thrust_origin=thrust_origin,
@@ -126,42 +73,36 @@ bem_mesh_parameters = RotorMeshParameters(
     num_radial=num_radial,
     num_azimuthal=num_azimuthal,
     num_blades=num_blades,
+    norm_hub_radius=0.2,
 )
-
-bem_inputs = RotorAnalysisInputs(
+# rotor analysis inputs
+inputs = RotorAnalysisInputs(
     rpm=rpm,
     mesh_parameters=bem_mesh_parameters,
     mesh_velocity=mesh_velocity,
 )
 
-bem_model = PittPetersModel(
+# Instantiate and run Pitt--Peters model
+pitt_peters_model = PittPetersModel(
     num_nodes=num_nodes,
-    airfoil_model=naca_4412_zero_d_model, #NACA4412MLAirfoilModel(), # #airfoil_model,#
+    airfoil_model=airfoil_model,
     integration_scheme='trapezoidal',
 )
 
-import time 
+pitt_peters_outputs = pitt_peters_model.evaluate(inputs=inputs)
 
-outputs = bem_model.evaluate(inputs=bem_inputs)
-T = outputs.total_thrust
-T.set_as_constraint(lower=5.7, upper=5.7)
-Q = csdl.average(outputs.total_torque)
-Q.set_as_objective(scaler=10)
+# Print scalar outputs
+print("Scalar Outputs:")
+print(f"Total thrust: {pitt_peters_outputs.total_thrust.value}")
+print(f"Total torque: {pitt_peters_outputs.total_torque.value}")
+print(f"Thrust coefficient: {pitt_peters_outputs.thrust_coefficient.value}")
+print(f"Torque coefficient: {pitt_peters_outputs.torque_coefficient.value}")
+print("\n")
 
-print("thrust BEM", T.value)
-print("torque BEM", outputs.total_torque.value)
-jax_sim = csdl.experimental.JaxSimulator(
-    recorder=recorder, gpu=True,
-    additional_inputs=[rpm],
-    additional_outputs=[T, Q]
+# Plot the sectional thrust distrubution over the rotor disk
+make_polarplot(
+    pitt_peters_outputs.sectional_thrust,
+    radius=radius,
+    quantity_name=[f"dT for Vx={v} m/s" for v in mesh_vel_np[:, 0]],
+    plot_contours=False,
 )
-
-jax_sim.run()
-
-# make_polarplot(outputs.sectional_thrust, plot_contours=False)
-
-print("thrust Pitt--Peters", outputs.total_thrust.value)
-print("torque Pitt--Peters", outputs.total_torque.value)
-# recorder.visualize_graph(trim_loops=True)
-recorder.stop()
-
