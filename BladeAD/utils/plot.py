@@ -139,8 +139,8 @@ def make_polarplot(
             cs = ax.contour(theta, r, radial_data, levels=contour_levels, colors='k', linestyles='dashed')
             ax.clabel(cs, inline=True, fontsize=10)
         if plot_min_max:
-            ax.plot(theta[max_idx], r[max_idx], 'ro', label='Max Thrust')
-            ax.plot(theta[min_idx], r[min_idx], 'bo', label='Min Thrust')
+            ax.plot(theta[max_idx], r[max_idx], 'ro', label=f'Max')
+            ax.plot(theta[min_idx], r[min_idx], 'bo', label=f'Min')
             ax.legend()
 
         ax.set_theta_zero_location('E')  # Set 0 angle to the right

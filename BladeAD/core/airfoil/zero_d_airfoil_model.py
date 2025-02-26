@@ -2,6 +2,7 @@ import csdl_alpha as csdl
 import numpy as np
 from dataclasses import dataclass
 from typing import Union
+from BladeAD.core.airfoil.zero_d_airfoil_model_custom_op import ZeroDAirfoilCustomOperation
 
 
 @dataclass
@@ -41,6 +42,15 @@ class ZeroDAirfoilPolarParameters(csdl.VariableGroup):
     Cl_alpha: Union[float, int]
 
 class ZeroDAirfoilModel:
+    """Zero-dimensional airfoil model.
+
+
+    Parameters
+    ----------
+    polar_parameters : ZeroDAirfoilPolarParameters
+        Polar parameters for the airfoil.
+
+    """
     def __init__(
             self, 
             polar_parameters: ZeroDAirfoilPolarParameters,
@@ -239,6 +249,28 @@ class ZeroDAirfoilModel:
         return dCl_daoa, dCd_daoa
 
     def evaluate(self, alpha, Re, Ma):
+        """Evaluate the airfoil model.
+        
+        Note that Reynolds number and Mach number are not used in this model.
+        They are included in the function signature to match the BladeAD airfoil API.
+
+        
+        Parameters
+        ----------
+        alpha : np.ndarray
+            Angle of attack in radians.
+        Re : np.ndarray (will not be used)
+            Reynolds number.
+        Ma : np.ndarray (will not be used)
+            Mach number.
+            
+        Returns
+        -------
+        Cl : np.ndarray
+            Lift coefficient.
+        Cd : np.ndarray
+            Drag coefficient.
+            """
         
         zero_d_airfoil_model = ZeroDAirfoilCustomOperation(
             airfoil_function=self._predict_values,
@@ -248,48 +280,4 @@ class ZeroDAirfoilModel:
         return zero_d_airfoil_model.evaluate(alpha)
         
 
-class ZeroDAirfoilCustomOperation(csdl.CustomExplicitOperation):
-    def __init__(self, airfoil_function,
-                   airfoil_function_derivative):
-        self.airfoil_function = airfoil_function
-        self.airfoil_function_derivative = airfoil_function_derivative
-
-        super().__init__()
-
-    def evaluate(self, alpha):
-        shape = alpha.shape
-
-        self.declare_input("alpha", alpha)
-        Cl = self.create_output("Cl", shape)
-        Cd = self.create_output("Cd", shape)
-
-        if len(shape) == 2:
-            indices = np.arange(shape[0] * shape[1])
-        elif len(shape) == 3:
-            indices = np.arange(shape[0] * shape[1] * shape[2])
-        else: 
-            raise NotImplementedError
-
-        self.declare_derivative_parameters("Cl", "alpha", rows=indices, cols=indices)
-        self.declare_derivative_parameters("Cd", "alpha", rows=indices, cols=indices)
-        
-        return Cl, Cd
-    
-    def compute(self, input_vals, output_vals):
-        airfoil_function = self.airfoil_function
-        alpha = input_vals["alpha"]
-        shape = alpha.shape
-
-        Cl, Cd = airfoil_function(alpha)
-
-        output_vals["Cl"] = Cl.reshape(shape)
-        output_vals["Cd"] = Cd.reshape(shape)
-
-    def compute_derivatives(self, inputs, outputs, derivatives):
-        airfoil_function_derivative = self.airfoil_function_derivative
-        alpha = inputs["alpha"]
-
-        dCl_daoa, dCd_daoa = airfoil_function_derivative(alpha)
-        derivatives["Cl", "alpha"] = dCl_daoa
-        derivatives["Cd", "alpha"] = dCd_daoa
 

@@ -8,6 +8,22 @@ from typing import Union
 
 
 class PittPetersModel:
+    """Pitt--Peters dynamic inflow model.
+    
+    
+    Parameters
+    ----------
+    num_nodes : int
+        Number of nodes. The number of evaluation points. The model can be 
+        evaluated at more than on operating point at once.
+    airfoil_model : object
+        Airfoil model.
+    tip_loss : bool, optional
+        Include tip loss, by default True
+    integration_scheme : str, optional
+        Numerical integration scheme, by default "trapezoidal"
+        Other options are "Simpson" and "Riemann".
+    """
     def __init__(
         self,
         num_nodes: int,
@@ -28,7 +44,27 @@ class PittPetersModel:
             self.tip_loss = 0
 
 
-    def evaluate(self, inputs: RotorAnalysisInputs, ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])) -> RotorAnalysisOutputs:
+    def evaluate(
+            self, 
+            inputs: RotorAnalysisInputs, 
+            ref_point: Union[csdl.Variable, np.ndarray]=np.array([0., 0., 0.])
+        ) -> RotorAnalysisOutputs:
+        """Evaluate the Pitt--Peters dynamic inflow model.
+
+
+        Parameters
+        ----------
+        inputs : RotorAnalysisInputs
+            Data class for definint input variables. 
+        ref_point : Union[csdl.Variable, np.ndarray], optional
+            Reference point for computing moments, by default np.array([0., 0., 0.])
+
+        Returns
+        -------
+        RotorAnalysisOutputs
+            Data class for defining output variables.
+        """
+        
         csdl.check_parameter(inputs, "inputs", types=RotorAnalysisInputs)
         csdl.check_parameter(ref_point, "ref_point", types=(csdl.Variable, np.ndarray))
 

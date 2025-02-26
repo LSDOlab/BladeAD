@@ -17,7 +17,8 @@ class PetersHeModel:
     tip_loss : bool, optional
         Include tip loss, by default True
     integration_scheme : str, optional
-        Integration scheme, by default "trapezoidal"
+        Numerical integration scheme, by default "trapezoidal"
+        Other options are "Simpson" and "Riemann".
     Q : int, optional
         Highest power of r/R, by default 3. Has to be less than or equal to 8.
     M : int, optional
@@ -44,16 +45,6 @@ class PetersHeModel:
         if M > Q:
             raise ValueError(f"M ({M}) (highest harmonic number) must not be greater than Q ({Q}) (highest power of r/R)")
  
-        # if Q > 5:
-        #     raise NotImplementedError("Q greater than 5 has significant computational cost and is not support in this version.")
- 
-
-        if M > Q:
-            raise ValueError(f"M ({M}) (highest harmonic number) must not be greater than Q ({Q}) (highest power of r/R)")
-
-        # if Q > 5:
-        #     raise NotImplementedError("Q greater than 5 has significant computational cost and is not support in this version.")
-
         self.num_nodes = num_nodes
         self.airfoil_model = airfoil_model
         self.integration_scheme = integration_scheme
@@ -63,6 +54,25 @@ class PetersHeModel:
  
    
     def evaluate(self, inputs: RotorAnalysisInputs) -> RotorAnalysisOutputs:
+        """Evaluate the Peters--He dynamic inflow model.
+        
+        Parameters
+        ----------
+        inputs : RotorAnalysisInputs
+            Rotor analysis inputs. Data class that stores rotor analysis 
+            inputs such as rpm, mesh parameters, and mesh velocity, etc.
+            
+        Returns
+        -------
+        RotorAnalysisOutputs
+            Rotor analysis outputs. Data class that stores rotor analysis
+            outputs such as total thrust, total torque, etc.
+        
+        Raises
+        ------
+        ValueError
+            If num_radial is even and integration scheme is Simpson.
+        """
         num_nodes = self.num_nodes
         num_radial = inputs.mesh_parameters.num_radial
         if self.integration_scheme == "Simpson" and (num_radial % 2) == 0:
