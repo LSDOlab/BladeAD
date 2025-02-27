@@ -16,9 +16,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'blade_ad'
-copyright = '2025, Marius'
-author = 'Marius'
+project = 'BladeAD'
+copyright = '2025, LSDO Lab'
+author = 'Marius Ruh'
 version = '0.1'
 # release = 0.1.0rtc
 

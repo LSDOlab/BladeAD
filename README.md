@@ -17,6 +17,11 @@ A package for low-fidelity rotor-aerodynamic analysis and optimization.
 
 Please refer to the [documentation](https://bladead.readthedocs.io/en/latest/src/examples/basic.html) for more information regarding the implemented models and how to use the code. 
 
+```{figure} /src/images/blade_ad_welcome.svg
+:align: center
+:alt: welcome_image
+```
+
 # Installation
 
 For direct installation with all dependencies, run on the terminal or command line

@@ -2,7 +2,7 @@
 
 ![alt text](/src/images/lsdolab.png "Title displayed")
 
-`BladeAD` is a package for **low-fidelity rotor-aerodynamic analysis and design**. 
+`BladeAD` is a package for **low-fidelity rotor-aerodynamic analysis and design** developed in the Large-Scale Design Optimization (LSDO) Lab at UC San Diego. 
 It implements three rotor-aerodynamic models:
 1. Blade element momentum (BEM) theory
 2. Pitt--Peters dynamic inflow model
@@ -13,6 +13,12 @@ For the dynamic inflow models, the current version only considers steady operati
 System Design Language](https://csdl-alpha.readthedocs.io/en/latest/) (`CSDL`).
 The critical feature of `CSDL` is that it **automates sensitivity analysis** using a graph-based modeling approach.
 This allows the user to make use fo the state-of-the art **gradient-based** optimization algorithms to optimize rotor designs. 
+
+
+```{figure} /src/images/blade_ad_welcome.svg
+:align: center
+:alt: welcome_image
+```
 
 # Cite us
 ```none
