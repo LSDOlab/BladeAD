@@ -173,16 +173,16 @@ collections = {
                                         # e.g. : `sphinx-build -b html -t dummy . _build/html`
    },
 
-   'copy_vnv': {
-      'driver': 'copy_folder',
-      'source': '../vnv', # source relative to path of makefile, not wrt /src
-      'target': 'vnv/',
-      'ignore': [],
-    #   'active': True,         # default: True. If False, this collection is ignored during doc build.
-    #   'safe': True,           # default: True. If True, any problem will raise an exception and stops the build.
-      'clean': True,            # default: True. If False, no cleanup is done before collections get executed.
-      'final_clean': True,      # default: True. If True, a final cleanup is done at the end of a Sphinx build.
-   },
+  #  'copy_vnv': {
+  #     'driver': 'copy_folder',
+  #     'source': '../vnv', # source relative to path of makefile, not wrt /src
+  #     'target': 'vnv/',
+  #     'ignore': [],
+  #   #   'active': True,         # default: True. If False, this collection is ignored during doc build.
+  #   #   'safe': True,           # default: True. If True, any problem will raise an exception and stops the build.
+  #     'clean': True,            # default: True. If False, no cleanup is done before collections get executed.
+  #     'final_clean': True,      # default: True. If True, a final cleanup is done at the end of a Sphinx build.
+  #  },
 
 
 
