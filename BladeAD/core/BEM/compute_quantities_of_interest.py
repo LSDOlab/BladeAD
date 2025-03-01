@@ -73,6 +73,11 @@ def compute_quantities_of_interest(
     CT_H = C_T * 4 / np.pi**3
     CQ_H = C_Q * 8 / np.pi**3
 
+    area = np.pi * radius[:, 0, 0]**2
+    V_tip = rpm / 60 * 2 * np.pi * radius[:, 0, 0]
+    C_T_new = thrust / rho[:, 0, 0]/ area / V_tip**2
+
+
     power = C_P * rho[:, 0, 0] * n**3 * (2 * radius[:, 0, 0])**5
 
     # Compute advance ratio and efficiency and FOM
@@ -94,7 +99,7 @@ def compute_quantities_of_interest(
         total_power=power,
         efficiency=eta,
         figure_of_merit=FoM,
-        thrust_coefficient=C_T,
+        thrust_coefficient=C_T_new,
         torque_coefficient=C_Q,
         power_coefficient=C_P
     )

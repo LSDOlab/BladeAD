@@ -160,5 +160,5 @@ After solving for $\phi$, we use the equations for $u_x$ and $u_{\theta}$ to fin
 
 ## Bibliography
 
-```{bibliography} references.bib
+```{bibliography} ../references.bib
 ```

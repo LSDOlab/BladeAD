@@ -7,13 +7,13 @@ When appropriate, we refer the reader to relevant papers for a more thorough exp
 We also explain the conventions used in `BladeAD` and summarize relevant features of the code base.
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 :caption: Theory
 :titlesonly:
 :numbered:
 :includehidden:
 
 background/bem
-backrgound/pitt_peters
+background/pitt_peters
 background/peters_he
 ```

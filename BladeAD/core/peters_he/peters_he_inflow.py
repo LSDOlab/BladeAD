@@ -515,11 +515,11 @@ def solve_for_steady_state_inflow(
         if initial_value is None:
             # basic fixed point iteration for state update
             # state_update = 0.05 * (csdl.matvec(L_block, tau) - state_vec)
-            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=100, elementwise_states=False)
+            solver = csdl.nonlinear_solvers.GaussSeidel(max_iter=75, elementwise_states=False, print_status=False)
             # solver.add_state(state_vec, residual, state_update=state_update)
             solver.add_state(state_vec, residual, state_update=state_vec + 0.05 * residual)
         else:
-            solver = csdl.nonlinear_solvers.Newton(max_iter=40, elementwise_states=False)
+            solver = csdl.nonlinear_solvers.Newton(max_iter=40, elementwise_states=False, print_status=False)
             solver.add_state(state_vec, residual, initial_value=initial_value[i, :])
             # solver.add_state(state_vec, residual, state_update=state_vec + state_update)
  

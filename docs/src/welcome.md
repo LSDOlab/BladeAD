@@ -46,5 +46,6 @@ src/tutorials
 <!-- src/custom_1
 src/custom_2 -->
 src/examples
+src/verification_and_validation
 src/api
 ```

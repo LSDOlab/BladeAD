@@ -167,13 +167,14 @@ def solve_for_steady_state_inflow(
         residual = state_vec - csdl.matvec(L_mat_new, rhs)
     
         # basic fixed point iteration for state update
-        state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
+        # state_update = 0.5 * (csdl.matvec(L_mat_new, rhs) - state_vec)
 
-        solver = csdl.nonlinear_solvers.GaussSeidel(
+        solver = csdl.nonlinear_solvers.Newton(
             max_iter=100, 
-            residual_jac_kwargs={'elementwise' : False, 'loop' : True}
+            residual_jac_kwargs={'elementwise' : False, 'loop' : True},
+            print_status=False,
         )
-        solver.add_state(state_vec, residual=residual, state_update=state_vec + state_update)
+        solver.add_state(state_vec, residual=residual)# , state_update=state_vec + state_update)
         solver.run()
 
         dT = 0.5 * B * rho[i, 0, 0] * (ux**2 + Vt[i, :, :]**2) * chord_profile[i, :, :] * Cx * dr[i, :, :] * F
